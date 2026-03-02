@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+venv/
+.mypy_cache/
+
+# Database
+memoshield.db
+
+# Packet captures
+captures/
+*.pcap
+
+# Go binaries
+core/core
+core/core.exe
+go-engine/memoengine
+go-engine/memoengine.exe
+
+# Node
+node_modules/
+package-lock.json
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

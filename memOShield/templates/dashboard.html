@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block head_extra %}{% endblock %}
+{% block content %}
+<div id="memoDemo" data-demo="{{ '1' if demo else '0' }}" style="display:none"></div>
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- ===== SIEM TOP BAR ===== -->
+<header class="siem-topbar">
+  <div class="siem-topbar-left">
+    <div class="siem-logo">memOShield<span class="siem-logo-sub">SIEM</span></div>
+    <div class="siem-sep"></div>
+    <nav class="siem-tabs">
+      <button class="siem-tab active" data-tab="overview">Genel Bakis</button>
+      <button class="siem-tab" data-tab="events">Olaylar</button>
+      <button class="siem-tab" data-tab="threats">Tehdit Haritasi</button>
+      <button class="siem-tab" data-tab="bans">Engelleme</button>
+    </nav>
+  </div>
+  <div class="siem-topbar-right">
+    <div class="siem-clock" id="siemClock">--:--:--</div>
+    <div id="statusBadge" class="siem-status offline">OFFLINE</div>
+    <button id="refresh" class="siem-icon-btn" title="Yenile">&#8635;</button>
+    <a href="/" class="siem-icon-btn" title="Ana Sayfa">&#8962;</a>
+    {% if session.get('logged_in') %}
+    <a href="/logout" class="siem-icon-btn" title="Cikis">&#9211;</a>
+    {% else %}
+    <a href="/login" class="siem-icon-btn" title="Giris">&#9210;</a>
+    {% endif %}
+  </div>
+</header>
+
+<!-- ===== SIEM BODY ===== -->
+<div class="siem-body">
+
+  <!-- ===== TAB: Overview ===== -->
+  <div class="siem-panel active" data-panel="overview">
+
+    <!-- Severity Summary Bar -->
+    <div class="siem-severity-bar">
+      <div class="sev-item critical">
+        <span class="sev-count" id="sevCritical">0</span>
+        <span class="sev-label">KRITIK</span>
+      </div>
+      <div class="sev-item high">
+        <span class="sev-count" id="sevHigh">0</span>
+        <span class="sev-label">YUKSEK</span>
+      </div>
+      <div class="sev-item medium">
+        <span class="sev-count" id="sevMedium">0</span>
+        <span class="sev-label">ORTA</span>
+      </div>
+      <div class="sev-item low">
+        <span class="sev-count" id="sevLow">0</span>
+        <span class="sev-label">DUSUK</span>
+      </div>
+      <div class="sev-item info">
+        <span class="sev-count" id="sevInfo">0</span>
+        <span class="sev-label">BILGI</span>
+      </div>
+      <div class="sev-divider"></div>
+      <div class="sev-item total">
+        <span class="sev-count" id="statEvents">0</span>
+        <span class="sev-label">TOPLAM OLAY</span>
+      </div>
+      <div class="sev-item total">
+        <span class="sev-count" id="statBans">0</span>
+        <span class="sev-label">AKTIF BAN</span>
+      </div>
+      <div class="sev-item total">
+        <span class="sev-count" id="statHoneypot">0</span>
+        <span class="sev-label">HONEYPOT</span>
+      </div>
+      <div class="sev-item total">
+        <span class="sev-count" id="statRecent">0</span>
+        <span class="sev-label">SON 1 DK</span>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="siem-grid-3">
+      <div class="siem-card">
+        <div class="siem-card-head">Olay Zaman Serisi</div>
+        <div class="siem-chart-wrap"><canvas id="eventsChart"></canvas></div>
+      </div>
+      <div class="siem-card">
+        <div class="siem-card-head">Saldiri Turu Dagilimi</div>
+        <div class="siem-chart-wrap"><canvas id="typeChart"></canvas></div>
+      </div>
+      <div class="siem-card">
+        <div class="siem-card-head">Ulke Dagilimi (Top 10)</div>
+        <div class="siem-chart-wrap"><canvas id="countryChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Live Feed + Lookup side-by-side -->
+    <div class="siem-grid-2">
+      <div class="siem-card siem-card-full">
+        <div class="siem-card-head">Son Olaylar (Canli Akis)
+          <span class="siem-head-badge" id="liveCount">0</span>
+        </div>
+        <div class="siem-live-feed" id="liveFeed"></div>
+      </div>
+      <div class="siem-card">
+        <div class="siem-card-head">IP Istihbarat Sorgulama</div>
+        <div class="siem-lookup">
+          <div class="siem-input-row">
+            <input id="lookupIp" placeholder="IP adresi girin..." aria-label="IP Sorgula">
+            <button id="lookupBtn" class="siem-btn accent" type="button">Sorgula</button>
+          </div>
+          <div id="lookupLoading" class="siem-loading" style="display:none"><div class="spinner"></div> Sorgulanıyor...</div>
+          <div id="lookupError" class="siem-error" style="display:none"></div>
+          <div id="lookupResult" class="siem-lookup-result" style="display:none">
+            <div class="siem-kv"><span>IP</span><span id="lkIp">-</span></div>
+            <div class="siem-kv"><span>Ulke</span><span id="lkCountry">-</span></div>
+            <div class="siem-kv"><span>ISP</span><span id="lkIsp">-</span></div>
+            <div class="siem-kv"><span>Organizasyon</span><span id="lkOrg">-</span></div>
+            <div class="siem-kv"><span>Hostname</span><span id="lkHostname">-</span></div>
+            <div class="siem-kv"><span>Koordinat</span><span id="lkCoord">-</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: Events ===== -->
+  <div class="siem-panel" data-panel="events">
+    <div class="siem-toolbar">
+      <input id="search" class="siem-search" placeholder="Ara: IP, ulke, saldiri turu..." aria-label="Ara">
+      <select id="typeFilter" class="siem-select" aria-label="Tur filtre">
+        <option value="all">Tum Turler</option>
+        <option value="Honeypot Trigger">Honeypot Trigger</option>
+        <option value="Port Scan">Port Scan</option>
+        <option value="DoS/DDoS">DoS/DDoS</option>
+        <option value="Brute Force">Brute Force</option>
+        <option value="SQL Injection">SQL Injection</option>
+        <option value="XSS">XSS</option>
+      </select>
+      <label class="siem-check"><input id="autorefresh" type="checkbox" checked> Otomatik yenile</label>
+      <div id="offlineNotice" class="siem-warn" style="display:none">OFFLINE — ornek veri gosteriliyor</div>
+    </div>
+
+    <div class="siem-card siem-card-full">
+      <div class="siem-table-wrap">
+        <table id="eventsTable" class="siem-table">
+          <thead>
+            <tr>
+              <th>SEVERITY</th>
+              <th>ZAMAN</th>
+              <th>KAYNAK IP</th>
+              <th>ULKE</th>
+              <th>SALDIRI TURU</th>
+              <th>DETAY</th>
+              <th>ISLEM</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="siem-pagination">
+        <button id="prevPage" class="siem-btn">Onceki</button>
+        <span id="pageInfo">1 / 1</span>
+        <button id="nextPage" class="siem-btn">Sonraki</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: Threats (Map) ===== -->
+  <div class="siem-panel" data-panel="threats">
+    <div class="siem-card siem-card-full" style="padding:0;overflow:hidden">
+      <div id="map" style="height:calc(100vh - 140px);min-height:500px;"></div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: Bans ===== -->
+  <div class="siem-panel" data-panel="bans">
+    <div class="siem-grid-2">
+      <div class="siem-card siem-card-full">
+        <div class="siem-card-head">Engellenen IP Listesi</div>
+        <div class="siem-table-wrap">
+          <table id="bansTable" class="siem-table">
+            <thead><tr><th>ZAMAN</th><th>IP ADRESI</th><th>SEBEP</th><th>ISLEM</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="siem-card" id="banCard">
+        <div class="siem-card-head">Manuel IP Engelleme</div>
+        <form id="banForm" class="siem-ban-form">
+          <input id="banIp" class="siem-input" placeholder="IP adresi" required>
+          <input id="banReason" class="siem-input" placeholder="Sebep (opsiyonel)">
+          <div class="siem-btn-row">
+            <button id="banSubmit" class="siem-btn danger" type="submit">Engelle</button>
+            <button id="clearForm" class="siem-btn" type="button">Temizle</button>
+          </div>
+        </form>
+        <div class="siem-card-head" style="margin-top:20px">Sistem Bilgisi</div>
+        <div class="siem-sys-info">
+          <div class="siem-kv"><span>Motor</span><span>Go + Python (Flask)</span></div>
+          <div class="siem-kv"><span>Veritabani</span><span>SQLite</span></div>
+          <div class="siem-kv"><span>GeoIP</span><span>ipapi.co</span></div>
+          <div class="siem-kv"><span>Gorsellestirme</span><span>Chart.js + Leaflet</span></div>
+          <div class="siem-kv"><span>IDS Esigi</span><span>200 pkt/sn</span></div>
+          <div class="siem-kv"><span>Honeypot</span><span>2121, 2323, 3307</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Confirm modal -->
+<div id="confirmModal" class="siem-modal" style="display:none">
+  <div class="siem-modal-box">
+    <div id="confirmMessage">Onayliyor musunuz?</div>
+    <div class="siem-modal-actions">
+      <button id="confirmNo" class="siem-btn">Hayir</button>
+      <button id="confirmYes" class="siem-btn danger">Evet</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+{% endblock %}

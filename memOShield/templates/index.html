@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="memOShield — Otonom Ag Guvenlik Katmani. Dinamik firewall, IDS, honeypot ve GeoIP tabanli ag guvenlik sistemi." />
+    <meta name="keywords" content="firewall, IDS, saldiri tespit, honeypot, ag guvenligi, siber guvenlik, otonom guvenlik" />
+    <meta property="og:title" content="memOShield — Otonom Ag Guvenlik Katmani" />
+    <meta property="og:description" content="Gercek zamanli tehdit algilama ve otonom mudahale sistemi" />
+    <title>memOShield — Otonom Ag Guvenlik Katmani</title>
+    <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="landing-nav">
+      <div class="nav-left">
+        <img src="/static/img/logo.svg" alt="memOShield" class="nav-logo" />
+        <div class="nav-brand">memOShield</div>
+      </div>
+      <div class="nav-right">
+        <a class="btn" href="#capabilities">Yetenekler</a>
+        <a class="btn" href="#architecture">Mimari</a>
+        <a class="btn" href="#specs">Teknik Detaylar</a>
+        <a class="btn primary" href="/demo">Demo</a>
+        <a class="btn" href="/login">Giris</a>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+      <div class="hero-inner">
+        <div class="hero-text">
+          <h1>Otonom Ag Guvenlik Katmani</h1>
+          <p>memOShield, gercek zamanli tehdit algilama, dinamik paket filtreleme ve otonom mudahale yetenekleriyle ag guvenligini saglayan cok katmanli bir guvenlik sistemidir. Go ve Python hibrit mimarisi ile 50ms altinda tepki suresi sunar.</p>
+          <div class="hero-cta">
+            <a class="btn primary" href="/demo">Canli Demo</a>
+            <a class="btn" href="#capabilities">Teknik Detaylar</a>
+          </div>
+        </div>
+        <div class="hero-shot">
+          <div class="card preview-card">
+            <iframe src="/dashboard?demo=1" style="border:0;width:100%;height:340px;border-radius:8px;background:#071727"></iframe>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Key Stats -->
+    <section class="stats-section">
+      <div class="stat-card">
+        <div class="stat-number">&lt;50ms</div>
+        <div class="stat-label">Tehdit Algilama Suresi</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">3</div>
+        <div class="stat-label">Guvenlik Katmani</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">180+</div>
+        <div class="stat-label">Ulke Izlemesi (GeoIP)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">7/24</div>
+        <div class="stat-label">Kesintisiz Izleme</div>
+      </div>
+    </section>
+
+    <!-- Core Capabilities -->
+    <section id="capabilities" class="capabilities">
+      <h2>Temel Yetenekler</h2>
+      <div class="capabilities-grid">
+        <div class="cap-card">
+          <h3>IDS — Saldiri Tespit Sistemi</h3>
+          <p>Ag trafigini gercek zamanli analiz ederek DoS/DDoS, port taramasi ve brute-force saldirilari otomatik olarak tespit eder ve mudahale eder.</p>
+          <ul class="tech-features">
+            <li>Kayan pencere algoritmasi ile davranis analizi</li>
+            <li>Esik tabanli otomatik ban mekanizmasi</li>
+            <li>Whitelist destegi ile guvenilir IP korunmasi</li>
+            <li>50ms altinda tepki suresi</li>
+          </ul>
+        </div>
+
+        <div class="cap-card">
+          <h3>Honeypot — Aldatma Mekanizmasi</h3>
+          <p>Sahte FTP, Telnet ve MySQL servisleri olusturarak saldirganlari tuzaga dusurur; gercek altyapiyi korur ve istihbarat toplar.</p>
+          <ul class="tech-features">
+            <li>3 farkli sahte servis (port 2121, 2323, 3307)</li>
+            <li>Baglanan IP otomatik olarak engellenir</li>
+            <li>GeoIP ile saldirgan profilleme</li>
+            <li>Tum etkilesimler veritabanina kaydedilir</li>
+          </ul>
+        </div>
+
+        <div class="cap-card">
+          <h3>GeoIP — Cografi Konum Analizi</h3>
+          <p>Tehdit kaynaklarini harita uzerinde gercek zamanli gorsellestirerek ulke, ISP ve hostname bilgilerini belirler.</p>
+          <ul class="tech-features">
+            <li>Canli interaktif dunya haritasi (Leaflet.js)</li>
+            <li>Ulke ve bolge bazli istatistikler</li>
+            <li>ISP ve organizasyon tespiti</li>
+            <li>Konum bazli alarm ve raporlama</li>
+          </ul>
+        </div>
+
+        <div class="cap-card">
+          <h3>PCAP — Adli Bilisim Kaydi</h3>
+          <p>Supheli paketler otomatik olarak PCAP formatinda kaydedilir; Wireshark ile derinlemesine analiz yapilabilir.</p>
+          <ul class="tech-features">
+            <li>Otomatik paket kaydi baslatma</li>
+            <li>Wireshark uyumlu cikti formati</li>
+            <li>Forensik analiz icin arsivleme</li>
+            <li>Olay kaniti olarak kullanilabilir</li>
+          </ul>
+        </div>
+
+        <div class="cap-card">
+          <h3>SSE — Gercek Zamanli Akis</h3>
+          <p>Server-Sent Events protokolu ile dashboard'a anlik olay akisi saglanir; sayfa yenilemeden canli izleme yapilabilir.</p>
+          <ul class="tech-features">
+            <li>Milisaniye seviyesinde olay iletimi</li>
+            <li>Dusuk bant genisligi tuketimi</li>
+            <li>Otomatik yeniden baglanti</li>
+            <li>Coklu istemci destegi</li>
+          </ul>
+        </div>
+
+        <div class="cap-card">
+          <h3>Dinamik Firewall</h3>
+          <p>Linux sistemlerde iptables/nftables kurallari otomatik olarak guncellenir; tehdit algilanan IP adresleri aninda engellenir.</p>
+          <ul class="tech-features">
+            <li>iptables ve nftables backend destegi</li>
+            <li>Otomatik kural ekleme ve kaldirma</li>
+            <li>Veritabani tabanli kural kaliciligi</li>
+            <li>Windows simulasyon modu</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture -->
+    <section id="architecture" class="use-cases">
+      <h2>Sistem Mimarisi</h2>
+      <div class="use-case-grid">
+        <div class="use-case">
+          <h4>Go Core Engine (Paket Yakalama)</h4>
+          <p>gopacket/pcap kutuphanesi ile ham paketleri yakalayarak kaynak IP, hedef port ve protokol bilgilerini cikarir. Kayan pencere algoritmasi ile her IP'nin davranisini izler.</p>
+        </div>
+        <div class="use-case">
+          <h4>Go SSE Broker (Olay Dagitimi)</h4>
+          <p>Core Engine'den gelen olaylari alir, Bearer token ile dogrulama yapar ve SSE protokolu uzerinden tum bagli dashboard'lara aninda yayinlar.</p>
+        </div>
+        <div class="use-case">
+          <h4>Flask Dashboard (Arayuz)</h4>
+          <p>Chart.js grafikleri, Leaflet haritasi ve canli olay tablosu ile tum tehditleri gorsel olarak sunar. Yonetici paneli uzerinden IP banlama ve sorgulama islemleri yapilabilir.</p>
+        </div>
+        <div class="use-case">
+          <h4>IDS Modulu (Tespit)</h4>
+          <p>Her IP icin zaman damgali kuyruk tutar; esik degeri asildiginda firewall kurali ekler, veritabanina yazar ve bildirim tetikler.</p>
+        </div>
+        <div class="use-case">
+          <h4>Bildirim Sistemi</h4>
+          <p>Kritik olaylar tespit edildiginde Telegram Bot API ve Slack Webhook uzerinden otomatik alert gonderimi yapar.</p>
+        </div>
+        <div class="use-case">
+          <h4>Veritabani ve Raporlama</h4>
+          <p>Tum olaylar SQLite veritabaninda kalici olarak saklanir. PDF rapor uretimi ve PCAP arsivleme ile forensik analiz desteklenir.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Technical Specifications -->
+    <section id="specs" class="specs">
+      <h2>Teknik Detaylar</h2>
+      <div class="specs-grid">
+        <div class="spec-box">
+          <h4>Programlama Dilleri</h4>
+          <ul>
+            <li><strong>Backend:</strong> Python 3.10+ (Flask framework)</li>
+            <li><strong>Paket Motoru:</strong> Go (gopacket/pcap)</li>
+            <li><strong>SSE Broker:</strong> Go (net/http)</li>
+            <li><strong>Frontend:</strong> HTML5, CSS3, Vanilla JavaScript</li>
+          </ul>
+        </div>
+
+        <div class="spec-box">
+          <h4>Performans Degerleri</h4>
+          <ul>
+            <li><strong>Tepki Suresi:</strong> &lt;50ms (algilama &rarr; engelleme)</li>
+            <li><strong>DoS Esigi:</strong> 200+ paket/saniye</li>
+            <li><strong>Port Tarama Esigi:</strong> 20+ port / 10 saniye</li>
+            <li><strong>Honeypot Portlari:</strong> FTP(2121), Telnet(2323), MySQL(3307)</li>
+          </ul>
+        </div>
+
+        <div class="spec-box">
+          <h4>Veri Saklama</h4>
+          <ul>
+            <li><strong>Veritabani:</strong> SQLite (yerel dosya tabanli)</li>
+            <li><strong>PCAP Kayit:</strong> Otomatik dosya arsivleme</li>
+            <li><strong>Olay Gecmisi:</strong> Son 200 olay dashboard'da gorunur</li>
+            <li><strong>Kural Kaliciligi:</strong> Veritabani tabanli, restart sonrasi korunur</li>
+          </ul>
+        </div>
+
+        <div class="spec-box">
+          <h4>Entegrasyon ve API</h4>
+          <ul>
+            <li><strong>REST API:</strong> /api/events, /api/ban, /api/bans</li>
+            <li><strong>Bildirim:</strong> Telegram Bot API, Slack Webhook</li>
+            <li><strong>GeoIP:</strong> ipapi.co harici servisi</li>
+            <li><strong>Gorsellestirme:</strong> Chart.js, Leaflet.js</li>
+          </ul>
+        </div>
+
+        <div class="spec-box">
+          <h4>Guvenlik Mekanizmalari</h4>
+          <ul>
+            <li><strong>Kimlik Dogrulama:</strong> Session tabanli admin girisi</li>
+            <li><strong>Hizmetler Arasi:</strong> Bearer token dogrulama</li>
+            <li><strong>TLS Destegi:</strong> Sertifika ile sifreleme (opsiyonel)</li>
+            <li><strong>Whitelist:</strong> Guvenilir IP'ler ban'dan muaf</li>
+          </ul>
+        </div>
+
+        <div class="spec-box">
+          <h4>Dagitim Secenekleri</h4>
+          <ul>
+            <li><strong>Yerel:</strong> Python venv + dogrudan calistirma</li>
+            <li><strong>Docker:</strong> Dockerfile ile konteyner</li>
+            <li><strong>Sunucu:</strong> systemd + gunicorn (Ubuntu)</li>
+            <li><strong>Windows:</strong> Simulasyon modu (iptables haric)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it Works - Attack Scenario -->
+    <section class="use-cases" style="margin-top:0">
+      <h2>Saldiri Senaryosu</h2>
+      <div class="use-case-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+        <div class="use-case">
+          <h4>1. Kesif</h4>
+          <p>Saldirgan, hedef sunucudaki acik portlari taramaya baslar.</p>
+        </div>
+        <div class="use-case">
+          <h4>2. Tuzak</h4>
+          <p>Honeypot portlarina (sahte FTP/MySQL) baglanir, tuzaga duser.</p>
+        </div>
+        <div class="use-case">
+          <h4>3. Istihbarat</h4>
+          <p>Go Core IP'yi yakalar; GeoIP ile ulke, ISP ve hostname belirlenir.</p>
+        </div>
+        <div class="use-case">
+          <h4>4. Engelleme</h4>
+          <p>Sistem 50ms icinde iptables kuralini ekler, IP engellenir.</p>
+        </div>
+        <div class="use-case">
+          <h4>5. Kayit</h4>
+          <p>Olay veritabanina yazilir, dashboard'da alarm belirir, bildirim gonderilir.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer CTA -->
+    <section class="contact-cta">
+      <h2 id="contact">Projeyi Deneyin</h2>
+      <p>memOShield'in canli demo modunu inceleyerek sistemin yeteneklerini gozlemleyebilirsiniz.</p>
+      <div class="cta-buttons">
+        <a class="btn primary" href="/demo">Canli Demo</a>
+        <a class="btn" href="/login">Yonetici Girisi</a>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="footer-content">
+        <div class="footer-col">
+          <h4>Proje Hakkinda</h4>
+          <p>memOShield, Go ve Python hibrit mimarisi ile gelistirilmis otonom bir ag guvenlik katmanidir. Saldiri tespit, aldatma mekanizmasi ve gercek zamanli izleme yeteneklerini tek bir platformda birlestirmektedir.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Bilesenler</h4>
+          <ul>
+            <li><a href="#capabilities">IDS / Saldiri Tespit</a></li>
+            <li><a href="#capabilities">Honeypot Sistemi</a></li>
+            <li><a href="#capabilities">GeoIP Analizi</a></li>
+            <li><a href="/demo">Canli Dashboard</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Teknolojiler</h4>
+          <ul>
+            <li><a href="#specs">Python / Flask</a></li>
+            <li><a href="#specs">Go / gopacket</a></li>
+            <li><a href="#specs">SQLite</a></li>
+            <li><a href="#specs">Chart.js / Leaflet</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Belgeler</h4>
+          <ul>
+            <li><a href="#architecture">Sistem Mimarisi</a></li>
+            <li><a href="#specs">Teknik Detaylar</a></li>
+            <li><a href="#capabilities">Yetenekler</a></li>
+            <li><a href="/demo">Demo Modu</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div>memOShield — 2026</div>
+      </div>
+    </footer>
+
+    <script src="/static/js/landing.js"></script>
+  </body>
+</html>

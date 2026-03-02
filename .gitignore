@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+venv/
+env/
+.venv/
+.env
+
+# PCAP capture files
+*.pcap
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Docker
+*.log
+
+# Go
+go-engine/go-engine
+go-engine/go-engine.exe
+core/core
+core/core.exe
+
+# Reports output
+reports/*.pdf
+
+# Environment
+.env
+*.env
