@@ -1,23 +1,28 @@
-{% extends "base.html" %}
-{% block content %}
+{{ define "content" }}
 <div class="auth-card">
   <h2>memOShield // GIRIS</h2>
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <div class="flash">
-      {% for cat, msg in messages %}
-        <div class="toast {{ cat }}">{{ msg }}</div>
-      {% endfor %}
-      </div>
-    {% endif %}
-  {% endwith %}
-  <form method="post">
+  {{ if .Flash }}
+  <div class="flash">
+    <div class="toast {{ .FlashCat }}">{{ .Flash }}</div>
+  </div>
+  {{ end }}
+  <form method="post" autocomplete="off">
+    <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
+    <!-- Honeypot field — hidden from humans via CSS, bots will fill it -->
+    <div style="position:absolute;left:-9999px;top:-9999px;opacity:0;height:0;overflow:hidden;" aria-hidden="true">
+      <label>Website URL</label>
+      <input type="text" name="website_url_hp" tabindex="-1" autocomplete="off">
+    </div>
     <label>Sifre</label>
-    <input name="password" type="password" placeholder="Yonetici sifresi" required />
+    <input name="password" type="password" placeholder="Yonetici sifresi" required autocomplete="current-password" />
+    {{ if .TOTPEnabled }}
+    <label>2FA Kodu</label>
+    <input name="totp_code" type="text" placeholder="6 haneli 2FA kodu" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" />
+    {{ end }}
     <div class="row">
       <button class="siem-btn accent" type="submit">GIRIS</button>
       <a class="siem-btn" href="/demo">DEMO</a>
     </div>
   </form>
 </div>
-{% endblock %}
+{{ end }}

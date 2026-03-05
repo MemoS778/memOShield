@@ -1,34 +1,45 @@
-FROM python:3.13-slim
+# Build stage
+FROM golang:1.22-alpine AS builder
 
-LABEL maintainer="memOShield" \
-      description="memOShield — Otonom Ağ Güvenlik Sistemi"
+WORKDIR /build
+
+# Module download (cache layer)
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source
+COPY . .
+
+# Build main binary
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o memoshield .
+
+# Build seed tool
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o seed ./cmd/seed
+
+# Runtime stage
+FROM alpine:3.19
+
+RUN apk add --no-cache ca-certificates iptables
 
 WORKDIR /app
 
-# Bağımlılıkları önce kopyala (layer cache)
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy binaries
+COPY --from=builder /build/memoshield .
+COPY --from=builder /build/seed .
 
-# Uygulama dosyalarını kopyala
-COPY app.py ./
-COPY memoshield/ ./memoshield/
+# Copy static assets and templates
 COPY static/ ./static/
 COPY templates/ ./templates/
-COPY tools/ ./tools/
-COPY reports/ ./reports/
 
-# Ortam değişkenleri
-ENV FLASK_ENV=production \
+# Environment variables
+ENV PORT=5000 \
     ENABLE_MOCK_STREAM=1 \
     MOCK_STREAM_INTERVAL=4 \
     ADMIN_PASSWORD=admin
 
-# Demo verisi oluştur
-RUN python -m tools.seed_mock_events
+# Seed demo data
+RUN ./seed
 
 EXPOSE 5000
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/events')" || exit 1
-
-CMD ["python", "app.py"]
+ENTRYPOINT ["./memoshield"]

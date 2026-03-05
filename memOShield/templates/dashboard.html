@@ -1,7 +1,5 @@
-{% extends "base.html" %}
-{% block head_extra %}{% endblock %}
-{% block content %}
-<div id="memoDemo" data-demo="{{ '1' if demo else '0' }}" style="display:none"></div>
+{{ define "content" }}
+<div id="memoDemo" data-demo="{{ if .Demo }}1{{ else }}0{{ end }}" style="display:none"></div>
 <div id="toastContainer" class="toast-container"></div>
 
 <!-- ===== SIEM TOP BAR ===== -->
@@ -14,6 +12,8 @@
       <button class="siem-tab" data-tab="events">Olaylar</button>
       <button class="siem-tab" data-tab="threats">Tehdit Haritasi</button>
       <button class="siem-tab" data-tab="bans">Engelleme</button>
+      <button class="siem-tab" data-tab="whitelist">Whitelist</button>
+      <button class="siem-tab" data-tab="security">Guvenlik</button>
     </nav>
   </div>
   <div class="siem-topbar-right">
@@ -21,11 +21,11 @@
     <div id="statusBadge" class="siem-status offline">OFFLINE</div>
     <button id="refresh" class="siem-icon-btn" title="Yenile">&#8635;</button>
     <a href="/" class="siem-icon-btn" title="Ana Sayfa">&#8962;</a>
-    {% if session.get('logged_in') %}
+    {{ if .LoggedIn }}
     <a href="/logout" class="siem-icon-btn" title="Cikis">&#9211;</a>
-    {% else %}
+    {{ else }}
     <a href="/login" class="siem-icon-btn" title="Giris">&#9210;</a>
-    {% endif %}
+    {{ end }}
   </div>
 </header>
 
@@ -195,7 +195,7 @@
         </form>
         <div class="siem-card-head" style="margin-top:20px">Sistem Bilgisi</div>
         <div class="siem-sys-info">
-          <div class="siem-kv"><span>Motor</span><span>Go + Python (Flask)</span></div>
+          <div class="siem-kv"><span>Motor</span><span>Go (net/http)</span></div>
           <div class="siem-kv"><span>Veritabani</span><span>SQLite</span></div>
           <div class="siem-kv"><span>GeoIP</span><span>ipapi.co</span></div>
           <div class="siem-kv"><span>Gorsellestirme</span><span>Chart.js + Leaflet</span></div>
@@ -203,6 +203,134 @@
           <div class="siem-kv"><span>Honeypot</span><span>2121, 2323, 3307</span></div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: Whitelist ===== -->
+  <div class="siem-panel" data-panel="whitelist">
+    <div class="siem-grid-2">
+      <div class="siem-card siem-card-full">
+        <div class="siem-card-head">Whitelist IP Listesi</div>
+        <div class="siem-table-wrap">
+          <table id="whitelistTable" class="siem-table">
+            <thead><tr><th>IP ADRESI</th><th>ISLEM</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="siem-card">
+        <div class="siem-card-head">IP Whitelist Ekle</div>
+        <form id="whitelistForm" class="siem-ban-form">
+          <input id="whitelistIp" class="siem-input" placeholder="IP adresi" required>
+          <div class="siem-btn-row">
+            <button class="siem-btn success" type="submit">Ekle</button>
+          </div>
+        </form>
+        <div class="siem-card-head" style="margin-top:20px">Olay Temizleme</div>
+        <div class="siem-ban-form">
+          <div class="siem-btn-row">
+            <button id="clearOldEvents" class="siem-btn" type="button">30 Gunden Eski Sil</button>
+            <button id="clearAllEvents" class="siem-btn danger" type="button">Tum Olaylari Sil</button>
+          </div>
+        </div>
+        <div class="siem-card-head" style="margin-top:20px">Sistem Sagligi</div>
+        <div class="siem-sys-info" id="healthInfo">
+          <div class="siem-kv"><span>Durum</span><span id="healthStatus">-</span></div>
+          <div class="siem-kv"><span>Versiyon</span><span id="healthVersion">-</span></div>
+          <div class="siem-kv"><span>Uptime</span><span id="healthUptime">-</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: Security ===== -->
+  <div class="siem-panel" data-panel="security">
+    <div class="siem-grid-2">
+
+      <!-- Security Score Card -->
+      <div class="siem-card">
+        <div class="siem-card-head">Guvenlik Skoru</div>
+        <div style="text-align:center;padding:20px 0">
+          <div id="secScore" style="font-size:48px;font-weight:bold;color:#3b82f6">-</div>
+          <div id="secGrade" style="font-size:24px;margin-top:8px;color:#94a3b8">-</div>
+        </div>
+        <div id="secChecks" class="siem-sys-info"></div>
+        <div style="margin-top:12px">
+          <button id="refreshSecScore" class="siem-btn accent" type="button">Skoru Yenile</button>
+        </div>
+      </div>
+
+      <!-- WAF Status Card -->
+      <div class="siem-card">
+        <div class="siem-card-head">WAF (Web Application Firewall)</div>
+        <div class="siem-sys-info" id="wafStats">
+          <div class="siem-kv"><span>Toplam Tespit</span><span id="wafTotal">-</span></div>
+          <div class="siem-kv"><span>Engellenen</span><span id="wafBlocked">-</span></div>
+          <div class="siem-kv"><span>Kural Sayisi</span><span id="wafRules">-</span></div>
+          <div class="siem-kv"><span>Durum</span><span id="wafEnabled">-</span></div>
+        </div>
+        <div class="siem-card-head" style="margin-top:16px">Son WAF Olaylari</div>
+        <div class="siem-table-wrap" style="max-height:200px;overflow-y:auto">
+          <table class="siem-table" id="wafEventsTable">
+            <thead><tr><th>ZAMAN</th><th>IP</th><th>KURAL</th><th>SEVERITY</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- IP Reputation Card -->
+      <div class="siem-card">
+        <div class="siem-card-head">IP Itibar Sistemi</div>
+        <div class="siem-table-wrap" style="max-height:300px;overflow-y:auto">
+          <table class="siem-table" id="reputationTable">
+            <thead><tr><th>IP</th><th>SKOR</th><th>RISK</th><th>OLAY</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px">
+          <div class="siem-input-row">
+            <input id="repLookupIp" placeholder="IP adresi sorgula..." class="siem-input">
+            <button id="repLookupBtn" class="siem-btn accent" type="button">Sorgula</button>
+          </div>
+          <div id="repLookupResult" class="siem-sys-info" style="display:none;margin-top:8px"></div>
+        </div>
+      </div>
+
+      <!-- 2FA & Geo-Block Card -->
+      <div class="siem-card">
+        <div class="siem-card-head">Iki Faktorlu Dogrulama (2FA)</div>
+        <div class="siem-sys-info">
+          <div class="siem-kv"><span>Durum</span><span id="twofaStatus">-</span></div>
+        </div>
+        <div class="siem-btn-row" style="margin-top:8px">
+          <button id="setup2FA" class="siem-btn accent" type="button">2FA Kur</button>
+          <button id="disable2FA" class="siem-btn danger" type="button">2FA Kapat</button>
+        </div>
+        <div id="twofaSecret" style="display:none;margin-top:12px;padding:12px;background:var(--card);border-radius:8px">
+          <div style="font-weight:bold;margin-bottom:8px">TOTP Secret:</div>
+          <code id="twofaSecretCode" style="word-break:break-all;font-size:14px"></code>
+          <div style="margin-top:8px;font-size:12px;color:#94a3b8">Bu kodu Google Authenticator veya benzeri bir uygulamaya ekleyin.</div>
+        </div>
+
+        <div class="siem-card-head" style="margin-top:20px">Ulke Bazli Engelleme</div>
+        <div id="geoBlockList" class="siem-sys-info"></div>
+        <div class="siem-input-row" style="margin-top:8px">
+          <input id="geoBlockCode" placeholder="Ulke kodu (ornek: CN)" class="siem-input" maxlength="2">
+          <button id="geoBlockAdd" class="siem-btn danger" type="button">Engelle</button>
+        </div>
+      </div>
+
+      <!-- Sessions & Audit Card -->
+      <div class="siem-card siem-card-full">
+        <div class="siem-card-head">Aktif Oturumlar</div>
+        <div class="siem-table-wrap" style="max-height:200px;overflow-y:auto">
+          <table class="siem-table" id="sessionsTable">
+            <thead><tr><th>IP</th><th>OLUSTURULMA</th><th>SON AKTIVITE</th><th>PARMAK IZI</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -220,4 +348,4 @@
 </div>
 
 <script src="/static/js/app.js"></script>
-{% endblock %}
+{{ end }}

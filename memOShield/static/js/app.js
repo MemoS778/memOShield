@@ -562,6 +562,280 @@ async function refreshAll(){
   if(currentPage > pages) currentPage = pages;
   renderEventsTable(filtered);
   renderBansTable();
+  renderWhitelistTable();
+  fetchHealth();
+}
+
+// ——— Whitelist ———
+async function fetchWhitelist(){
+  try{
+    const res = await fetch('/api/whitelist');
+    if(!res.ok) throw new Error('no');
+    const data = await res.json();
+    return data.whitelist || [];
+  } catch(err){ return []; }
+}
+
+async function renderWhitelistTable(){
+  const tbody = document.querySelector('#whitelistTable tbody');
+  if(!tbody) return;
+  const ips = await fetchWhitelist();
+  tbody.innerHTML = '';
+  if(ips.length === 0){
+    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#64748b;padding:16px">Whitelist bos</td></tr>';
+    return;
+  }
+  ips.forEach(ip => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${ip}</td>
+      <td><button class="siem-btn danger wl-remove-btn" data-ip="${ip}" style="padding:3px 8px;font-size:10px">Kaldir</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  document.querySelectorAll('.wl-remove-btn').forEach(btn => btn.addEventListener('click', async ev => {
+    const ip = ev.currentTarget.dataset.ip;
+    if(IS_DEMO){ showToast('Demo modu: Whitelist islemi devre disi','info'); return; }
+    const ok = await showConfirm(`IP ${ip} whitelist'ten kaldirilsin mi?`);
+    if(!ok) return;
+    try{
+      const res = await fetch('/api/whitelist/remove', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ip}) });
+      if(!res.ok) throw new Error('fail');
+      showToast(`IP ${ip} whitelist'ten kaldirildi`, 'success');
+      renderWhitelistTable();
+    } catch(err){ showToast('Whitelist kaldirma basarisiz','error'); }
+  }));
+}
+
+// ——— Health Check ———
+async function fetchHealth(){
+  try{
+    const res = await fetch('/api/health');
+    if(!res.ok) throw new Error('no');
+    const data = await res.json();
+    const el = id => document.getElementById(id);
+    if(el('healthStatus')) el('healthStatus').textContent = data.status || '-';
+    if(el('healthVersion')) el('healthVersion').textContent = data.version || '-';
+    if(el('healthUptime')) el('healthUptime').textContent = data.uptime || '-';
+  } catch(err){ /* ignore */ }
+}
+
+// ——— Event Clear ———
+async function clearEvents(days){
+  try{
+    const res = await fetch('/api/events/clear', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({days}) });
+    if(!res.ok) throw new Error('fail');
+    const data = await res.json();
+    showToast(`${data.deleted || 0} olay silindi`, 'success');
+    await refreshAll();
+  } catch(err){ showToast('Olay temizleme basarisiz','error'); }
+}
+
+// ——— Security Tab Functions ———
+
+async function fetchSecurityScore(){
+  try{
+    const res = await fetch('/api/security/score');
+    if(!res.ok) return;
+    const d = await res.json();
+    const el = (id) => document.getElementById(id);
+    if(el('secScore')) el('secScore').textContent = d.score ?? '-';
+    if(el('secGrade')){
+      el('secGrade').textContent = d.grade ?? '-';
+      const colors = {'A+':'#10b981','A':'#10b981','B':'#3b82f6','C':'#f59e0b','D':'#f97316','F':'#ef4444'};
+      el('secGrade').style.color = colors[d.grade] || '#94a3b8';
+    }
+    if(el('secChecks') && d.checks){
+      el('secChecks').innerHTML = d.checks.map(c =>
+        `<div class="siem-kv"><span>${c.name}</span><span style="color:${c.passed?'#10b981':'#ef4444'}">${c.passed?'✓':'✗'} ${c.detail||''}</span></div>`
+      ).join('');
+    }
+  } catch(err){ console.warn('secScore err', err); }
+}
+
+async function fetchWAFStats(){
+  try{
+    const res = await fetch('/api/security/waf');
+    if(!res.ok) return;
+    const d = await res.json();
+    const el = (id) => document.getElementById(id);
+    if(el('wafTotal')) el('wafTotal').textContent = d.total_detections ?? 0;
+    if(el('wafBlocked')) el('wafBlocked').textContent = d.blocked ?? 0;
+    if(el('wafRules')) el('wafRules').textContent = d.rule_count ?? 0;
+    if(el('wafEnabled')) el('wafEnabled').textContent = d.enabled ? 'Aktif' : 'Pasif';
+    if(el('wafEnabled')) el('wafEnabled').style.color = d.enabled ? '#10b981' : '#ef4444';
+  } catch(err){ console.warn('waf err', err); }
+}
+
+async function fetchWAFEvents(){
+  try{
+    const res = await fetch('/api/security/waf/events');
+    if(!res.ok) return;
+    const events = await res.json();
+    const tbody = document.querySelector('#wafEventsTable tbody');
+    if(!tbody) return;
+    if(!events || events.length === 0){
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;opacity:.5">Kayit yok</td></tr>';
+      return;
+    }
+    tbody.innerHTML = events.slice(0, 50).map(e =>
+      `<tr><td>${new Date(e.time).toLocaleString('tr-TR')}</td><td>${esc(e.ip)}</td><td>${esc(e.rule)}</td><td>${esc(e.payload?.substring(0,80))}</td></tr>`
+    ).join('');
+  } catch(err){ console.warn('wafEvents err', err); }
+}
+
+async function fetchIPReputation(){
+  try{
+    const res = await fetch('/api/security/reputation');
+    if(!res.ok) return;
+    const data = await res.json();
+    const tbody = document.querySelector('#reputationTable tbody');
+    if(!tbody) return;
+    if(!data || data.length === 0){
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;opacity:.5">Kayit yok</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.slice(0, 30).map(r => {
+      const scoreColor = r.score >= 80 ? '#ef4444' : r.score >= 50 ? '#f97316' : '#10b981';
+      return `<tr><td>${esc(r.ip)}</td><td style="color:${scoreColor};font-weight:bold">${r.score}</td><td>${r.events||0}</td><td>${r.blocked?'<span style="color:#ef4444">Engellendi</span>':'Aktif'}</td></tr>`;
+    }).join('');
+  } catch(err){ console.warn('reputation err', err); }
+}
+
+async function reputationLookup(ip){
+  const resultEl = document.getElementById('repLookupResult');
+  if(!resultEl) return;
+  try{
+    const res = await fetch(`/api/security/reputation/lookup/${encodeURIComponent(ip)}`);
+    if(!res.ok) throw new Error('not found');
+    const d = await res.json();
+    resultEl.style.display = 'block';
+    const scoreColor = d.score >= 80 ? '#ef4444' : d.score >= 50 ? '#f97316' : '#10b981';
+    resultEl.innerHTML = `
+      <div class="siem-kv"><span>IP</span><span>${esc(d.ip)}</span></div>
+      <div class="siem-kv"><span>Skor</span><span style="color:${scoreColor};font-weight:bold">${d.score}</span></div>
+      <div class="siem-kv"><span>Olaylar</span><span>${d.events||0}</span></div>
+      <div class="siem-kv"><span>Durum</span><span>${d.blocked?'Engellendi':'Normal'}</span></div>
+      ${d.last_seen ? `<div class="siem-kv"><span>Son Gorulme</span><span>${new Date(d.last_seen).toLocaleString('tr-TR')}</span></div>` : ''}
+      ${d.reasons ? `<div class="siem-kv"><span>Sebepler</span><span>${esc(d.reasons)}</span></div>` : ''}
+    `;
+  } catch(err){
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `<div style="color:#ef4444">IP bulunamadi veya hata olustu</div>`;
+  }
+}
+
+async function fetch2FAStatus(){
+  try{
+    const res = await fetch('/api/security/2fa/status');
+    if(!res.ok) return;
+    const d = await res.json();
+    const el = document.getElementById('twofaStatus');
+    if(el){
+      el.textContent = d.enabled ? 'Aktif' : 'Pasif';
+      el.style.color = d.enabled ? '#10b981' : '#f97316';
+    }
+    const setupBtn = document.getElementById('setup2FA');
+    const disableBtn = document.getElementById('disable2FA');
+    if(setupBtn) setupBtn.style.display = d.enabled ? 'none' : '';
+    if(disableBtn) disableBtn.style.display = d.enabled ? '' : 'none';
+  } catch(err){ console.warn('2fa status err', err); }
+}
+
+async function setup2FA(){
+  try{
+    const res = await fetch('/api/security/2fa/setup', { method:'POST' });
+    if(!res.ok) throw new Error('fail');
+    const d = await res.json();
+    const secretEl = document.getElementById('twofaSecret');
+    const codeEl = document.getElementById('twofaSecretCode');
+    if(secretEl && codeEl){
+      codeEl.textContent = d.secret || '';
+      secretEl.style.display = 'block';
+    }
+    showToast('2FA kurulumu basarili. Sirri kaydedin!', 'success');
+    fetch2FAStatus();
+  } catch(err){ showToast('2FA kurulum basarisiz','error'); }
+}
+
+async function disable2FA(){
+  const ok = await showConfirm('2FA devre disi birakilsin mi?');
+  if(!ok) return;
+  try{
+    const res = await fetch('/api/security/2fa/disable', { method:'POST' });
+    if(!res.ok) throw new Error('fail');
+    showToast('2FA devre disi birakildi', 'success');
+    const secretEl = document.getElementById('twofaSecret');
+    if(secretEl) secretEl.style.display = 'none';
+    fetch2FAStatus();
+  } catch(err){ showToast('2FA kapatma basarisiz','error'); }
+}
+
+async function fetchGeoBlock(){
+  try{
+    const res = await fetch('/api/security/geoblock');
+    if(!res.ok) return;
+    const d = await res.json();
+    const el = document.getElementById('geoBlockList');
+    if(!el) return;
+    if(!d.countries || d.countries.length === 0){
+      el.innerHTML = '<div style="opacity:.5">Engellenen ulke yok</div>';
+      return;
+    }
+    el.innerHTML = d.countries.map(c =>
+      `<span style="display:inline-block;background:var(--surface);padding:4px 10px;border-radius:6px;margin:2px 4px;font-weight:600">${esc(c)} <button onclick="removeGeoBlock('${esc(c)}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-weight:bold">✗</button></span>`
+    ).join('');
+  } catch(err){ console.warn('geoblock err', err); }
+}
+
+async function addGeoBlock(code){
+  if(!code || code.length !== 2){ showToast('Gecerli 2 haneli ulke kodu giriniz','error'); return; }
+  try{
+    const res = await fetch('/api/security/geoblock/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({country:code.toUpperCase()}) });
+    if(!res.ok) throw new Error('fail');
+    showToast(`${code.toUpperCase()} engellendi`, 'success');
+    fetchGeoBlock();
+  } catch(err){ showToast('Ulke engelleme basarisiz','error'); }
+}
+
+async function removeGeoBlock(code){
+  try{
+    const res = await fetch('/api/security/geoblock/remove', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({country:code}) });
+    if(!res.ok) throw new Error('fail');
+    showToast(`${code} engeli kaldirildi`, 'success');
+    fetchGeoBlock();
+  } catch(err){ showToast('Engel kaldirma basarisiz','error'); }
+}
+
+async function fetchSessions(){
+  try{
+    const res = await fetch('/api/security/sessions');
+    if(!res.ok) return;
+    const sessions = await res.json();
+    const tbody = document.querySelector('#sessionsTable tbody');
+    if(!tbody) return;
+    if(!sessions || sessions.length === 0){
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;opacity:.5">Aktif oturum yok</td></tr>';
+      return;
+    }
+    tbody.innerHTML = sessions.map(s =>
+      `<tr><td>${esc(s.id?.substring(0,8))}...</td><td>${esc(s.ip)}</td><td>${new Date(s.created).toLocaleString('tr-TR')}</td><td>${s.current?'<span style="color:#10b981;font-weight:bold">Bu oturum</span>':'Diger'}</td></tr>`
+    ).join('');
+  } catch(err){ console.warn('sessions err', err); }
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function loadSecurityTab(){
+  await Promise.all([
+    fetchSecurityScore(),
+    fetchWAFStats(),
+    fetchWAFEvents(),
+    fetchIPReputation(),
+    fetch2FAStatus(),
+    fetchGeoBlock(),
+    fetchSessions()
+  ]);
 }
 
 // ——— Init ———
@@ -611,6 +885,76 @@ document.addEventListener('DOMContentLoaded', async () => {
   const clearBtn = document.getElementById('clearForm');
   if(clearBtn) clearBtn.addEventListener('click', ()=>{ if(banForm) banForm.reset(); });
 
+  // Whitelist form
+  const whitelistForm = document.getElementById('whitelistForm');
+  if(whitelistForm){
+    whitelistForm.addEventListener('submit', async ev => {
+      ev.preventDefault();
+      const ip = document.getElementById('whitelistIp').value.trim();
+      if(!ip) return showToast('IP giriniz','error');
+      if(IS_DEMO){ showToast('Demo modu: Whitelist islemi devre disi','info'); whitelistForm.reset(); return; }
+      try{
+        const res = await fetch('/api/whitelist/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ip}) });
+        if(!res.ok) throw new Error('fail');
+        showToast(`IP ${ip} whitelist'e eklendi`, 'success');
+        whitelistForm.reset();
+        renderWhitelistTable();
+      } catch(err){ showToast('Whitelist ekleme basarisiz','error'); }
+    });
+  }
+
+  // Event clear buttons
+  const clearOldBtn = document.getElementById('clearOldEvents');
+  if(clearOldBtn) clearOldBtn.addEventListener('click', async ()=>{
+    if(IS_DEMO){ showToast('Demo modu: Temizleme devre disi','info'); return; }
+    const ok = await showConfirm('30 gunden eski olaylar silinsin mi?');
+    if(ok) await clearEvents(30);
+  });
+  const clearAllBtn = document.getElementById('clearAllEvents');
+  if(clearAllBtn) clearAllBtn.addEventListener('click', async ()=>{
+    if(IS_DEMO){ showToast('Demo modu: Temizleme devre disi','info'); return; }
+    const ok = await showConfirm('TUM olaylar silinsin mi? Bu islem geri alinamaz!');
+    if(ok) await clearEvents(0);
+  });
+
+  // ——— Security Tab Event Listeners ———
+  const refreshSecBtn = document.getElementById('refreshSecScore');
+  if(refreshSecBtn) refreshSecBtn.addEventListener('click', () => fetchSecurityScore());
+
+  const repLookupBtn = document.getElementById('repLookupBtn');
+  const repLookupInput = document.getElementById('repLookupIp');
+  if(repLookupBtn) repLookupBtn.addEventListener('click', () => {
+    const ip = repLookupInput?.value.trim();
+    if(ip) reputationLookup(ip);
+    else showToast('IP adresi giriniz','error');
+  });
+  if(repLookupInput) repLookupInput.addEventListener('keydown', ev => {
+    if(ev.key === 'Enter'){ ev.preventDefault(); repLookupBtn?.click(); }
+  });
+
+  const setup2FABtn = document.getElementById('setup2FA');
+  if(setup2FABtn) setup2FABtn.addEventListener('click', () => {
+    if(IS_DEMO){ showToast('Demo modu: 2FA islemi devre disi','info'); return; }
+    setup2FA();
+  });
+  const disable2FABtn = document.getElementById('disable2FA');
+  if(disable2FABtn) disable2FABtn.addEventListener('click', () => {
+    if(IS_DEMO){ showToast('Demo modu: 2FA islemi devre disi','info'); return; }
+    disable2FA();
+  });
+
+  const geoBlockAddBtn = document.getElementById('geoBlockAdd');
+  const geoBlockInput = document.getElementById('geoBlockCode');
+  if(geoBlockAddBtn) geoBlockAddBtn.addEventListener('click', () => {
+    if(IS_DEMO){ showToast('Demo modu: Geo-block devre disi','info'); return; }
+    const code = geoBlockInput?.value.trim();
+    addGeoBlock(code);
+    if(geoBlockInput) geoBlockInput.value = '';
+  });
+  if(geoBlockInput) geoBlockInput.addEventListener('keydown', ev => {
+    if(ev.key === 'Enter'){ ev.preventDefault(); geoBlockAddBtn?.click(); }
+  });
+
   // Auto-refresh
   const autoEl = document.getElementById('autorefresh');
   if(autoEl){
@@ -640,6 +984,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ——— Initial load ———
   await refreshAll();
+  loadSecurityTab(); // Load security data
 
   if(IS_DEMO){
     const banCard = document.getElementById('banCard');

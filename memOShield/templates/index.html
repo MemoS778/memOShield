@@ -35,7 +35,7 @@
       <div class="hero-inner">
         <div class="hero-text">
           <h1>Otonom Ag Guvenlik Katmani</h1>
-          <p>memOShield, gercek zamanli tehdit algilama, dinamik paket filtreleme ve otonom mudahale yetenekleriyle ag guvenligini saglayan cok katmanli bir guvenlik sistemidir. Go ve Python hibrit mimarisi ile 50ms altinda tepki suresi sunar.</p>
+          <p>memOShield, gercek zamanli tehdit algilama, dinamik paket filtreleme ve otonom mudahale yetenekleriyle ag guvenligini saglayan cok katmanli bir guvenlik sistemidir. Go mimarisi ile 50ms altinda tepki suresi sunar.</p>
           <div class="hero-cta">
             <a class="btn primary" href="/demo">Canli Demo</a>
             <a class="btn" href="#capabilities">Teknik Detaylar</a>
@@ -146,15 +146,15 @@
       <h2>Sistem Mimarisi</h2>
       <div class="use-case-grid">
         <div class="use-case">
-          <h4>Go Core Engine (Paket Yakalama)</h4>
-          <p>gopacket/pcap kutuphanesi ile ham paketleri yakalayarak kaynak IP, hedef port ve protokol bilgilerini cikarir. Kayan pencere algoritmasi ile her IP'nin davranisini izler.</p>
+          <h4>Go HTTP Sunucu</h4>
+          <p>Standart net/http kutuphanesi ile yuksek performansli HTTP sunucu. Tum API endpoint'leri, SSE stream ve statik dosya servisi tek bir Go binary icinde.</p>
         </div>
         <div class="use-case">
-          <h4>Go SSE Broker (Olay Dagitimi)</h4>
-          <p>Core Engine'den gelen olaylari alir, Bearer token ile dogrulama yapar ve SSE protokolu uzerinden tum bagli dashboard'lara aninda yayinlar.</p>
+          <h4>Go SSE Broadcaster</h4>
+          <p>Goroutine tabanli broadcaster ile gercek zamanli olay dagitimi. Her SSE istemcisi icin ayri kanal olusturulur ve non-blocking yayin yapilir.</p>
         </div>
         <div class="use-case">
-          <h4>Flask Dashboard (Arayuz)</h4>
+          <h4>Dashboard (Arayuz)</h4>
           <p>Chart.js grafikleri, Leaflet haritasi ve canli olay tablosu ile tum tehditleri gorsel olarak sunar. Yonetici paneli uzerinden IP banlama ve sorgulama islemleri yapilabilir.</p>
         </div>
         <div class="use-case">
@@ -167,7 +167,7 @@
         </div>
         <div class="use-case">
           <h4>Veritabani ve Raporlama</h4>
-          <p>Tum olaylar SQLite veritabaninda kalici olarak saklanir. PDF rapor uretimi ve PCAP arsivleme ile forensik analiz desteklenir.</p>
+          <p>Tum olaylar SQLite veritabaninda kalici olarak saklanir. Pure Go SQLite driver (modernc.org/sqlite) ile CGO bagimliligi olmadan calisir.</p>
         </div>
       </div>
     </section>
@@ -179,9 +179,9 @@
         <div class="spec-box">
           <h4>Programlama Dilleri</h4>
           <ul>
-            <li><strong>Backend:</strong> Python 3.10+ (Flask framework)</li>
-            <li><strong>Paket Motoru:</strong> Go (gopacket/pcap)</li>
-            <li><strong>SSE Broker:</strong> Go (net/http)</li>
+            <li><strong>Backend:</strong> Go 1.22+ (net/http)</li>
+            <li><strong>Veritabani:</strong> SQLite (modernc.org/sqlite)</li>
+            <li><strong>Template:</strong> Go html/template</li>
             <li><strong>Frontend:</strong> HTML5, CSS3, Vanilla JavaScript</li>
           </ul>
         </div>
@@ -219,7 +219,7 @@
         <div class="spec-box">
           <h4>Guvenlik Mekanizmalari</h4>
           <ul>
-            <li><strong>Kimlik Dogrulama:</strong> Session tabanli admin girisi</li>
+            <li><strong>Kimlik Dogrulama:</strong> HMAC-signed cookie session</li>
             <li><strong>Hizmetler Arasi:</strong> Bearer token dogrulama</li>
             <li><strong>TLS Destegi:</strong> Sertifika ile sifreleme (opsiyonel)</li>
             <li><strong>Whitelist:</strong> Guvenilir IP'ler ban'dan muaf</li>
@@ -229,9 +229,9 @@
         <div class="spec-box">
           <h4>Dagitim Secenekleri</h4>
           <ul>
-            <li><strong>Yerel:</strong> Python venv + dogrudan calistirma</li>
-            <li><strong>Docker:</strong> Dockerfile ile konteyner</li>
-            <li><strong>Sunucu:</strong> systemd + gunicorn (Ubuntu)</li>
+            <li><strong>Binary:</strong> Tek Go binary ile calistirma</li>
+            <li><strong>Docker:</strong> Multi-stage Dockerfile</li>
+            <li><strong>Sunucu:</strong> systemd + Go binary (Ubuntu)</li>
             <li><strong>Windows:</strong> Simulasyon modu (iptables haric)</li>
           </ul>
         </div>
@@ -252,7 +252,7 @@
         </div>
         <div class="use-case">
           <h4>3. Istihbarat</h4>
-          <p>Go Core IP'yi yakalar; GeoIP ile ulke, ISP ve hostname belirlenir.</p>
+          <p>Go sunucu IP'yi yakalar; GeoIP ile ulke, ISP ve hostname belirlenir.</p>
         </div>
         <div class="use-case">
           <h4>4. Engelleme</h4>
@@ -280,7 +280,7 @@
       <div class="footer-content">
         <div class="footer-col">
           <h4>Proje Hakkinda</h4>
-          <p>memOShield, Go ve Python hibrit mimarisi ile gelistirilmis otonom bir ag guvenlik katmanidir. Saldiri tespit, aldatma mekanizmasi ve gercek zamanli izleme yeteneklerini tek bir platformda birlestirmektedir.</p>
+          <p>memOShield, Go ile gelistirilmis otonom bir ag guvenlik katmanidir. Saldiri tespit, aldatma mekanizmasi ve gercek zamanli izleme yeteneklerini tek bir platformda birlestirmektedir.</p>
         </div>
         <div class="footer-col">
           <h4>Bilesenler</h4>
@@ -294,10 +294,10 @@
         <div class="footer-col">
           <h4>Teknolojiler</h4>
           <ul>
-            <li><a href="#specs">Python / Flask</a></li>
-            <li><a href="#specs">Go / gopacket</a></li>
+            <li><a href="#specs">Go (net/http)</a></li>
             <li><a href="#specs">SQLite</a></li>
             <li><a href="#specs">Chart.js / Leaflet</a></li>
+            <li><a href="#specs">SSE (Server-Sent Events)</a></li>
           </ul>
         </div>
         <div class="footer-col">

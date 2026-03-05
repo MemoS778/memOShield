@@ -1,10 +1,8 @@
 # memOShield — Otonom Ağ Güvenlik Katmanı
 
-**memOShield**, basit bir güvenlik duvarı olmanın ötesinde, hem savunma hem de analiz yeteneklerini birleştiren **Otonom bir Ağ Güvenlik Katmanı**'dır.
+**memOShield**, saldırı algılama, honeypot tuzakları ve gerçek zamanlı tehdit görselleştirmesi sunan **Go ile yazılmış otonom bir ağ güvenlik sistemidir**.
 
-Temel felsefesi: **Saldırganı sadece engellemek değil, onu tanımak, tuzağa düşürmek ve hakkında istihbarat toplamak.**
-
-Geleneksel firewall'lar statiktir — sadece senin tanımladığın kuralları uygular. memOShield ise **dinamiktir**; saldırganın hareketlerini analiz eder ve kendi kararını vererek savunma hattını günceller. Golang (paket motoru) + Python (dashboard & IDS) hibrit mimarisiyle yazılmış, **50ms tepki süresi** ile DoS/DDoS, port taraması ve brute-force saldırılarını yakalar.
+Tek bir Go binary, SQLite veritabanı ve modern web dashboard ile **<50ms tepki süresinde** DoS/DDoS, port taraması ve brute-force saldırılarını tespit edip engeller.
 
 ---
 
@@ -13,13 +11,13 @@ Geleneksel firewall'lar statiktir — sadece senin tanımladığın kuralları u
 | Özellik | Açıklama |
 |---------|----------|
 | **IDS (Saldırı Algılama)** | DoS/DDoS, port tarama, kötü User-Agent tespiti |
-| **Honeypot** | Sahte FTP/SSH/MySQL servisleri ile saldırganları tuzağa düşürme |
-| **Tehdit İstihbaratı (GeoIP)** | Saldırganın ülkesi, ISP'si (Türk Telekom, AWS vb.) ve hostname'ini belirler |
+| **Honeypot** | Sahte FTP/Telnet/MySQL servisleri ile saldırganları tuzağa düşürme |
+| **GeoIP İstihbaratı** | Saldırganın ülkesi, ISP'si ve hostname bilgisi |
 | **Whitelist** | Güvenilir IP'lerin banlanmasını önler |
-| **Real-Time Dashboard** | SSE ile canlı güncellenen olay tablosu, grafikler, harita |
+| **Real-Time Dashboard** | SSE ile canlı güncellenen tablo, grafikler, harita |
 | **Bildirimler** | Telegram ve Slack'e otomatik alert gönderimi |
-| **Forensics** | PCAP kaydı + PDF raporlama |
-| **Token Auth + TLS** | Hizmetler arası güvenli iletişim |
+| **Dinamik Firewall** | Linux iptables ile otomatik IP engelleme |
+| **PCAP Kaydı** | Paket yakalama desteği (gopacket/pcap) |
 
 ---
 
@@ -28,140 +26,67 @@ Geleneksel firewall'lar statiktir — sadece senin tanımladığın kuralları u
 ```
 İnternet / Dış Ağ
        │
-┌──────▼──────────────┐
-│  Go Core Engine     │  ← Paket yakalama (gopacket/pcap)
-│  (port 9000)        │  ← DoS + Port-scan tespiti
-└──────┬──────────────┘
-       │ HTTP POST /ingest
-┌──────▼──────────────┐
-│  Go Engine (SSE)    │  ← Real-time olay yayınlama
-│  (port 8081)        │  ← Token auth + TLS
-└──────┬──────────────┘
-       │
-┌──────▼──────────────┐
-│  Flask App (5000)   │  ← Dashboard, API, Honeypot, IDS
-│  + Leaflet Harita   │  ← Chart.js grafikleri
-│  + Dark Theme UI    │  ← SSE canlı akış
-└─────────────────────┘
+┌──────▼──────────────────────┐
+│  Go HTTP Sunucu (net/http)  │
+│  Port 5000                  │
+│                             │
+│  ┌─────────────────────┐    │
+│  │ IDS Engine          │    │  ← Rate-limit + port scan tespiti
+│  │ Honeypot Listeners  │    │  ← Sahte servisler (2121, 2323, 3307)
+│  │ Firewall Manager    │    │  ← iptables kural yönetimi
+│  │ GeoIP Client        │    │  ← ipapi.co entegrasyonu
+│  │ SSE Broadcaster     │    │  ← Gerçek zamanlı olay yayını
+│  │ Notifier            │    │  ← Telegram + Slack alertleri
+│  └─────────────────────┘    │
+│                             │
+│  ┌─────────────────────┐    │
+│  │ REST API Endpoints  │    │
+│  │ Dashboard (HTML)    │    │
+│  │ Chart.js + Leaflet  │    │
+│  │ SQLite Veritabanı   │    │
+│  └─────────────────────┘    │
+└─────────────────────────────┘
 ```
 
 ---
 
-## Kullanım Senaryosu — Bir Saldırı Nasıl Yakalanır?
+## Hızlı Başlangıç
 
-```
-1. KEŞIF      Saldırgan, sunucundaki açık portları taramaya başlar.
-2. TUZAK      memOShield'ın Honeypot'una (sahte FTP/MySQL portu) dokunur.
-3. İSTİHBARAT  Go Core anında IP'yi yakalar → GeoIP ile ülke, ISP, hostname bulunur.
-4. İMHA       Sistem <50ms içinde iptables kuralı ekler → IP "kapıda" engellenir.
-5. KAYIT      Tüm süreç DB'ye yazılır, Dashboard'da alarm grafiği belirir,
-              Telegram/Slack'e alert gönderilir, PCAP kaydı forensics'e hazır.
-```
+### Gereksinimler
 
-Saldırgan daha sistemi keşfedemeden banlanmıştır. Gerçek servislere hiç ulaşamamıştır.
+- Go 1.22+
+- Git
 
----
+### Kurulum ve Çalıştırma
 
-## memOShield'ın Farkı
+```bash
+# Klonla
+git clone https://github.com/MemoS778/memOShield.git
+cd memOShield
 
-Piyasadaki birçok firewall sadece trafiği izler ve sabit kurallar uygular. memOShield ise:
+# Bağımlılıkları indir
+go mod tidy
 
-| Klasik Firewall | memOShield |
-|----------------|------------|
-| Statik kurallar | **Dinamik karar verme** — davranış analizi ile otomatik ban |
-| Sadece engelleme | **Aldatma** — Honeypot ile saldırganı tuzağa düşürür |
-| IP log'u tutar | **İstihbarat** — ISP, hostname, ülke bilgisi çıkarır |
-| Manuel raporlama | **Otomatik raporlama** — PDF + canlı dashboard + alert |
-| Tek dil | **Hibrit mimari** — Go (performans) + Python (esneklik) |
+# Demo verisi oluştur
+go run ./cmd/seed
 
----
-
-## Nasıl Çalışır
-
-memOShield üç katmanlı bir güvenlik hattı oluşturur. Her katman bağımsız çalışabilir, birlikte kullanıldığında tam koruma sağlar.
-
-### 1. Paket Yakalama (Go Core — `core/main.go`)
-
-```
-Ağ trafiği → gopacket/pcap ile dinleme → Her paketin kaynak IP'si çıkarılır
+# Sunucuyu başlat
+go run .
 ```
 
-- Linux kernel seviyesinde `AF_PACKET` / `pcap` ile **ham paketleri** yakalar
-- Her paket için kaynak IP, hedef port ve protokol bilgisini çıkarır
-- **Kayan pencere** (sliding window) algoritması ile her IP'nin davranışını izler:
-  - Saniyede 200+ paket → **DoS/DDoS** olarak işaretler
-  - 10 saniyede 20+ farklı port → **Port taraması** olarak işaretler
-- Tehdit tespit edildiğinde Go Engine'e HTTP POST ile bildirir
+Tarayıcıda: **http://localhost:5000**
 
-### 2. Olay Dağıtımı (Go Engine — `go-engine/`)
+### Mock Stream ile Demo
 
-```
-Core Engine → POST /ingest → Go Engine → SSE broadcast → Dashboard
+```bash
+ENABLE_MOCK_STREAM=1 go run .
 ```
 
-- Gelen olayları alır, **Bearer token** ile doğrulama yapar
-- **SSE (Server-Sent Events)** ile tüm bağlı dashboard'lara anında yayınlar
-- `/ban` endpoint'i ile IP engelleme komutları alır
-- Binlerce eşzamanlı SSE istemcisini düşük bellek kullanımıyla destekler
+### Docker
 
-### 3. Dashboard & Koruma (Flask App — `app.py` + `memoshield/`)
-
-Flask uygulaması hem kullanıcı arayüzünü hem de arka plan koruma servislerini çalıştırır:
-
-#### IDS Modülü (`ids.py`)
-```
-Gelen paket → IP kuyruğuna ekle → Eşik aşıldı mı? → Evet: Ban + Log + Alert
-```
-- Her IP için zaman damgalı kuyruk tutar
-- Eşik aşılınca: Firewall kuralı ekler, veritabanına yazar, bildirimi tetikler
-- **Whitelist** kontrolü: Güvenilir IP'ler IDS'den muaf tutulur
-
-#### Honeypot Modülü (`honeypot.py`)
-```
-Sahte portlar (2121, 2323, 3307) dinleniyor → Bağlantı geldi → IP anında banlandı
-```
-- Sahte FTP (2121), Telnet (2323) ve MySQL (3307) servisleri açar
-- Bağlanan IP anında kaydedilir, GeoIP ile ülkesi belirlenir ve **kalıcı olarak engellenir**
-- Gerçek servislere hiç ulaşılamaz — saldırgan tuzağa düşer
-
-#### Firewall Modülü (`firewall.py`)
-```
-Ban komutu → SQLite'a kaydet → Linux'ta iptables kuralı uygula
-```
-- Windows'ta simülasyon (yalnızca DB kaydı)
-- Linux'ta `iptables -A INPUT -s <IP> -j DROP` ile gerçek engelleme
-- Tüm kurallar veritabanında tutulur → restart sonrası kaybolmaz
-
-#### Bildirim Akışı
-```
-Kritik olay → Notifier → Telegram Bot API / Slack Webhook
-```
-
-#### Forensics
-```
-Paketler → PCAP dosyasına kayıt → Sonradan Wireshark ile analiz
-Olaylar → PDF raporu üretimi → Yönetim sunumu
-```
-
-### Tüm Akış (Uçtan Uca)
-
-```
-Saldırgan IP → Ağ trafiği
-       │
-       ▼
-  Go Core Engine           ← pcap ile paket yakalama
-  (saniyede 200+ paket?)
-       │ Evet
-       ▼
-  Go Engine /ingest        ← Olay kaydı + SSE yayını
-       │
-       ├──▶ Dashboard      ← Harita + grafikler anında güncellenir
-       ├──▶ Firewall       ← iptables DROP kuralı eklenir
-       ├──▶ Notifier       ← Telegram/Slack alert gönderilir
-       ├──▶ SQLite DB      ← Olay kalıcı olarak kaydedilir
-       └──▶ PCAP Recorder  ← Paketler dosyaya yazılır
-
-Tüm süre: ~50ms (algılama → engelleme)
+```bash
+docker build -t memoshield .
+docker run -p 5000:5000 memoshield
 ```
 
 ---
@@ -170,213 +95,105 @@ Tüm süre: ~50ms (algılama → engelleme)
 
 ```
 memOShield/
-├── app.py                  # Flask ana uygulama (port 5000)
-├── requirements.txt        # Python bağımlılıkları
-├── Dockerfile              # Flask container
-├── memoshield/             # Python çekirdek modüller
-│   ├── db.py               #   SQLite event logging
-│   ├── firewall.py         #   iptables/nftables arayüzü
-│   ├── ids.py              #   IDS kuralları (DoS, port-scan, UA)
-│   ├── honeypot.py         #   Honeypot yöneticisi
-│   ├── geoip.py            #   GeoIP lookup
-│   ├── whitelist.py        #   IP whitelist
-│   ├── notifier.py         #   Telegram/Slack alerts
-│   ├── pcap_recorder.py    #   PCAP kaydı
-│   ├── broadcaster.py      #   SSE broadcast
-│   └── mock_stream.py      #   Demo mock data
-├── go-engine/              # Go SSE broker servisi
-│   ├── main.go             #   HTTP sunucu + /ban, /ingest
-│   ├── engine.go           #   SSE broker implementasyonu
-│   └── Dockerfile          #   Go engine container
-├── core/                   # Go paket yakalama motoru
-│   └── main.go             #   gopacket/pcap ile trafik dinleme
-├── templates/              # Jinja2 HTML şablonları
-│   ├── index.html          #   Landing page
-│   ├── dashboard.html      #   Real-time dashboard
-│   ├── login.html          #   Admin giriş
-│   └── base.html           #   Temel layout
-├── static/                 # Statik dosyalar
-│   ├── css/style.css       #   Dark theme
-│   ├── js/app.js           #   SSE client + Chart.js + Leaflet
-│   └── img/                #   Logo, favicon
-├── reports/
-│   └── pdf_report.py       # PDF raporlama
-├── tools/
-│   └── seed_mock_events.py # Mock veri üretici
-├── docs/
-│   └── deployment.md       # Ubuntu/systemd kurulum
-├── test.ps1                # Windows test scripti
-├── test.sh                 # Linux test scripti
-└── test_docker.sh          # Docker test scripti
+├── main.go                         # Giriş noktası
+├── go.mod                          # Go modül tanımı
+├── Dockerfile                      # Multi-stage Docker build
+├── cmd/
+│   └── seed/
+│       └── main.go                 # Demo veri oluşturucu
+├── internal/
+│   ├── broadcaster/broadcaster.go  # SSE fan-out yayıncı
+│   ├── config/config.go            # Yapılandırma (env vars)
+│   ├── db/db.go                    # SQLite veritabanı
+│   ├── firewall/firewall.go        # Firewall kural yönetimi
+│   ├── geoip/geoip.go              # GeoIP istemcisi
+│   ├── honeypot/honeypot.go        # Honeypot sunucuları
+│   ├── ids/ids.go                  # Saldırı tespit motoru
+│   ├── mockstream/mockstream.go    # Mock olay üreticisi
+│   ├── notifier/notifier.go        # Telegram/Slack bildirim
+│   ├── pcap/pcap.go                # PCAP kaydedici
+│   ├── web/handlers.go             # HTTP handler'lar + API
+│   └── whitelist/whitelist.go      # IP whitelist
+├── static/
+│   ├── css/style.css               # Dashboard tema
+│   ├── js/app.js                   # SIEM dashboard JS
+│   ├── js/landing.js               # Landing page JS
+│   └── img/                        # Logo ve favicon
+├── templates/
+│   ├── base.html                   # Temel layout
+│   ├── dashboard.html              # SIEM dashboard
+│   ├── index.html                  # Landing sayfası
+│   └── login.html                  # Giriş sayfası
+└── docs/
+    └── deployment.md               # Dağıtım rehberi
 ```
 
 ---
 
-## Hızlı Başlangıç
+## API Endpoints
 
-### Windows
-
-```powershell
-cd memOShield
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python app.py
-```
-
-### Linux / Ubuntu
-
-```bash
-sudo apt install python3-venv libpcap-dev
-cd memOShield
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python app.py
-```
-
-### Docker
-
-```bash
-docker build -t memoshield:latest .
-docker run -e ADMIN_PASSWORD=changeme -p 5000:5000 memoshield:latest
-```
-
-Tarayıcıda aç:
-- `http://127.0.0.1:5000` → Landing page
-- `http://127.0.0.1:5000/demo` → Demo dashboard (şifresiz)
-- `http://127.0.0.1:5000/login` → Admin giriş (varsayılan şifre: `admin`)
-
----
-
-## Test
-
-### Otomatik Test Scriptleri
-
-```powershell
-# Windows
-.\test.ps1
-
-# Linux
-bash test.sh
-
-# Docker
-bash test_docker.sh
-```
-
-Test scriptleri şunları kontrol eder:
-1. Python / venv kurulumu
-2. Bağımlılık yükleme
-3. Database başlatma
-4. Tüm modül testleri (firewall, geoip, ids, whitelist, honeypot)
-5. Flask app yükleme
-6. API endpoint testleri (test.sh)
-
-### Manuel API Testi
-
-```bash
-# Olayları listele
-curl http://127.0.0.1:5000/api/events
-
-# Admin girişi
-curl -c cookies.txt -X POST http://127.0.0.1:5000/login -d "password=admin"
-
-# IP banla
-curl -b cookies.txt -X POST http://127.0.0.1:5000/api/ban \
-  -H "Content-Type: application/json" \
-  -d '{"ip":"203.0.113.1","reason":"test"}'
-```
-
----
-
-## Go Engine (Opsiyonel)
-
-Go engine, yüksek performanslı paket işleme ve SSE yayını sağlar.
-
-### SSE Broker (go-engine/)
-
-```bash
-cd go-engine
-go build -o memoengine .
-export AUTH_TOKEN="s3cr3t"
-./memoengine    # → :8081 portunda dinler
-```
-
-### Paket Yakalama Motoru (core/)
-
-```bash
-cd core
-go build -o core .
-export ENGINE_TOKEN="s3cr3t"
-sudo ./core -iface eth0 -engine http://127.0.0.1:8081/ingest -rate 200
-```
-
----
-
-## Production Deployment (Ubuntu)
-
-Detaylı kurulum: [docs/deployment.md](docs/deployment.md)
-
-```bash
-# Kısa özet
-sudo apt install python3-venv libpcap-dev golang-go
-cd /opt/memOShield
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# Go engine
-cd go-engine && go build -o memoengine .
-sudo cp memoengine /usr/local/bin/
-
-# systemd ile başlat
-sudo systemctl enable memoshield-go memoshield-python
-sudo systemctl start memoshield-go memoshield-python
-```
+| Endpoint | Metot | Açıklama |
+|----------|-------|----------|
+| `/api/events` | GET | Son 200 güvenlik olayı |
+| `/api/events/clear` | POST | Olay geçmişini temizle `{days}` (0 = hepsi) |
+| `/api/bans` | GET | Engellenen IP listesi |
+| `/api/rules` | GET | Firewall kuralları |
+| `/api/ban` | POST | IP engelle `{ip, reason}` |
+| `/api/unban` | POST | IP ban kaldır `{ip}` |
+| `/api/lookup/:ip` | GET | IP istihbarat sorgulama |
+| `/api/record` | POST | Paket kaydet `{ip}` |
+| `/api/stats` | GET | Toplu istatistikler (saldırı türleri, ülkeler, saatlik dağılım) |
+| `/api/health` | GET | Sistem sağlık durumu ve uptime |
+| `/api/whitelist` | GET | Whitelist listesi |
+| `/api/whitelist/add` | POST | Whitelist'e IP ekle `{ip}` |
+| `/api/whitelist/remove` | POST | Whitelist'ten IP kaldır `{ip}` |
+| `/api/honeypot-status` | GET | Honeypot durumu |
+| `/stream` | GET | SSE gerçek zamanlı akış |
 
 ---
 
 ## Ortam Değişkenleri
 
 | Değişken | Varsayılan | Açıklama |
-|----------|------------|----------|
-| `ADMIN_PASSWORD` | `admin` | Dashboard admin şifresi |
-| `FLASK_SECRET` | `change-this-secret` | Flask session key |
-| `AUTH_TOKEN` | _(boş)_ | Go engine hizmet arası token |
-| `ENGINE_TOKEN` | _(boş)_ | Core → Go engine token |
-| `TLS_CERT` / `TLS_KEY` | _(boş)_ | TLS sertifika yolları |
-| `ENABLE_MOCK_STREAM` | `0` | Demo mock data akışı |
-| `TELEGRAM_BOT_TOKEN` | _(boş)_ | Telegram bildirim token'ı |
-| `SLACK_WEBHOOK_URL` | _(boş)_ | Slack webhook URL'i |
+|----------|-----------|----------|
+| `PORT` | `5000` | HTTP sunucu portu |
+| `ADMIN_PASSWORD` | `admin` | Yönetici şifresi |
+| `FLASK_SECRET` | `change-this-secret` | Cookie imzalama anahtarı |
+| `ENABLE_MOCK_STREAM` | `0` | Mock olay akışı (`1` = aktif) |
+| `MOCK_STREAM_INTERVAL` | `3` | Mock akış aralığı (saniye) |
+| `MOCK_STREAM_MODE` | `steady` | `steady` / `burst` / `random` |
+| `TELEGRAM_BOT_TOKEN` | - | Telegram bot token |
+| `TELEGRAM_CHAT_ID` | - | Telegram chat ID |
+| `SLACK_WEBHOOK` | - | Slack webhook URL |
+| `GEOIP_URL` | `https://ipapi.co/%s/json/` | GeoIP API URL |
+| `IDS_THRESHOLD` | `300` | IDS rate-limit eşiği (paket/pencere) |
+| `IDS_WINDOW_SECONDS` | `10` | IDS pencere süresi (saniye) |
+| `IDS_BAN_DURATION_SECONDS` | `600` | IDS ban süresi (saniye) |
+| `IDS_PORT_THRESHOLD` | `80` | Port tarama eşiği |
+| `IDS_UA_RULES` | `sqlmap,nikto,nmap,...` | Kötü User-Agent kuralları (virgülle ayrılmış) |
+| `WAF_ENABLED` | `false` | WAF middleware'i aktif/pasif yapar |
+| `UA_BLOCK_ENABLED` | `false` | Saldırı aracı User-Agent bloklamasını aktif/pasif yapar |
+| `IP_REPUTATION_AUTOBAN` | `false` | IP reputation skoruna göre otomatik ban |
+| `MAX_ADMIN_SESSIONS` | `10` | Eşzamanlı admin oturum limiti |
+| `SESSION_MAX_AGE` | `86400` | Oturum çerezi ömrü (saniye) |
+| `LOGIN_RATE_LIMIT_ENABLED` | `false` | Login denemelerinde rate limit kontrolü |
+| `LOGIN_LOCKOUT_ENABLED` | `false` | Çoklu hatalı girişte IP lockout |
+| `LOGIN_CSRF_ENABLED` | `false` | Login formunda CSRF token zorunluluğu |
+| `LOGIN_HONEYPOT_ENABLED` | `false` | Login honeypot bot tespiti |
 
 ---
 
-## Teknoloji Stack
+## Teknolojiler
 
-| Katman | Teknoloji |
-|--------|-----------|
-| Backend | Python 3.10+, Flask |
-| Paket Motoru | Go, gopacket/pcap |
-| SSE Broker | Go (go-engine) |
-| Veritabanı | SQLite |
-| Frontend | HTML5, CSS3, Vanilla JS |
-| Görselleştirme | Chart.js, Leaflet.js |
-| Bildirim | Telegram Bot API, Slack Webhooks |
-| Deployment | Docker, systemd, gunicorn |
-| Güvenlik | Bearer Token, TLS/mTLS |
+- **Go 1.22+** — Backend, HTTP sunucu, tüm iş mantığı
+- **SQLite** — Veritabanı (modernc.org/sqlite, pure Go, CGO gerektirmez)
+- **HTML/CSS/JS** — Dashboard (Chart.js, Leaflet.js)
+- **SSE** — Gerçek zamanlı olay akışı
+- **iptables** — Linux firewall entegrasyonu
 
 ---
 
-## Sorun Giderme
+## Lisans
 
-| Sorun | Çözüm |
-|-------|-------|
-| `Python not found` | Python 3.10+ kur: https://www.python.org |
-| Port 5000 meşgul | `lsof -i :5000` ile kontrol et |
-| PCAP hatası (Windows) | Npcap kur: https://npcap.com |
-| Go engine permission denied | `sudo setcap cap_net_raw=ep ./memoengine` |
-| Sayfa boş/çirkin | Ctrl+F5 ile hard refresh |
-
----
-
-**memOShield** — Saldırganı engelleyen, aldatan, fişleyen ve raporlayan otonom ağ güvenlik sistemi.
+MIT License — 2026 memOShield
 
