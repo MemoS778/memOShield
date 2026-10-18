@@ -1,45 +1,14 @@
-# Build stage
-FROM golang:1.22-alpine AS builder
-
+FROM golang:1.26-alpine AS builder
 WORKDIR /build
-
-# Module download (cache layer)
 COPY go.mod go.sum ./
 RUN go mod download
-
-# Copy source
 COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /memoshield .
 
-# Build main binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o memoshield .
-
-# Build seed tool
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o seed ./cmd/seed
-
-# Runtime stage
-FROM alpine:3.19
-
-RUN apk add --no-cache ca-certificates iptables
-
-WORKDIR /app
-
-# Copy binaries
-COPY --from=builder /build/memoshield .
-COPY --from=builder /build/seed .
-
-# Copy static assets and templates
-COPY static/ ./static/
-COPY templates/ ./templates/
-
-# Environment variables
-ENV PORT=5000 \
-    ENABLE_MOCK_STREAM=1 \
-    MOCK_STREAM_INTERVAL=4 \
-    ADMIN_PASSWORD=admin
-
-# Seed demo data
-RUN ./seed
-
-EXPOSE 5000
-
-ENTRYPOINT ["./memoshield"]
+FROM alpine:3.23
+RUN apk add --no-cache ca-certificates && adduser -D -u 10001 memoshield && mkdir /data && chown memoshield /data
+COPY --from=builder /memoshield /usr/local/bin/memoshield
+USER memoshield
+ENV MEMOSHIELD_DATA_DIR=/data MEMOSHIELD_JOURNAL=0 MEMOSHIELD_MODE=monitor
+VOLUME ["/data"]
+ENTRYPOINT ["/usr/local/bin/memoshield"]

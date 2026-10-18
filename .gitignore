@@ -1,43 +1,22 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg-info/
-dist/
-build/
-*.egg
-.eggs/
-venv/
-env/
-.venv/
+# Local configuration, editor and OS files
 .env
-
-# PCAP capture files
-*.pcap
-
-# IDE
+*.env
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
-Thumbs.db
 .DS_Store
+Thumbs.db
 
-# Docker
+# Generated output and local runtime data
+build/
+dist/
+node_modules/
+*.exe
 *.log
-
-# Go
-go-engine/go-engine
-go-engine/go-engine.exe
-core/core
-core/core.exe
-
-# Reports output
-reports/*.pdf
-
-# Environment
-.env
-*.env
+*.pcap
+*.db
+*.db-shm
+*.db-wal
+access-token
+instance.lock

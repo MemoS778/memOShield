@@ -1,0 +1,11 @@
+*.exe
+/memoshield-personal
+/memoshield-fw
+*.db*
+access-token
+instance.lock
+.env
+build/
+dist/
+**/node_modules
+tests/

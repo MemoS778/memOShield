@@ -1,0 +1,16 @@
+[Unit]
+Description=memOShield Personal IDS dashboard and sensors
+After=network.target
+
+[Service]
+Type=simple
+# Replace with the absolute path to your compiled personal binary.
+ExecStart=%h/memOShield/memOShield/memoshield-personal
+Environment=MEMOSHIELD_MODE=monitor
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target
