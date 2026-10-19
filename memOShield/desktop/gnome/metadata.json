@@ -3,7 +3,7 @@
   "name": "memOShield Personal",
   "description": "Yerel memOShield servisinin sensörlerini, olaylarını ve süreli engellerini GNOME panelinden yönetir. Ayrı memoshield-personal servisi gerekir.",
   "shell-version": ["51"],
-  "version": 1,
+  "version": 2,
   "url": "https://github.com/MemoS778/memOShield",
   "settings-schema": "org.gnome.shell.extensions.memoshield"
 }
