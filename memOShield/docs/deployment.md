@@ -1,5 +1,7 @@
 # Linux üzerinde kişisel kullanım
 
+> **Masaüstü geçişi:** Güncel servis TCP portu ve web paneli sunmaz. Güncel kurulum için [masaüstü rehberini](../desktop/README.md) kullanın. Bu sayfadaki SSH, Suricata ve ayrı firewall yardımcısı kurulumu geçerlidir; tarayıcı girişine ve 5000 portuna ilişkin adımlar önceki sürüme aittir. Native servis önerilir; önceki Docker panel örneği güncel masaüstü dağıtımı değildir.
+
 ## 1. Derleme ve izleme
 
 Go 1.26+ ile, uygulamanın `go.mod` dosyasının bulunduğu dizinde:

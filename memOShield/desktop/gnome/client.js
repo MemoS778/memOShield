@@ -16,13 +16,17 @@ export function localOrigin(value) {
 
 export class Client {
     constructor(url, tokenPath = '') {
-        this.origin = localOrigin(url);
-        this.tokenPath = tokenPath || GLib.build_filenamev([
+        this.origin = 'http://localhost';
+        this.socketPath = url && url.startsWith('/') ? url : GLib.getenv('MEMOSHIELD_SOCKET') || GLib.build_filenamev([
+            GLib.getenv('XDG_RUNTIME_DIR') || GLib.build_filenamev([GLib.getenv('XDG_STATE_HOME') || GLib.build_filenamev([GLib.get_home_dir(), '.local', 'state']), 'memoshield']),
+            'memoshield', 'control.sock',
+        ]);
+        this.tokenPath = tokenPath || (GLib.getenv('MEMOSHIELD_DATA_DIR') ? GLib.build_filenamev([GLib.getenv('MEMOSHIELD_DATA_DIR'), 'access-token']) : GLib.build_filenamev([
             GLib.getenv('XDG_STATE_HOME') || GLib.build_filenamev([GLib.get_home_dir(), '.local', 'state']),
             'memoshield', 'access-token',
-        ]);
+        ]));
         this.cancel = new Gio.Cancellable();
-        this.session = new Soup.Session({timeout: 8, proxy_resolver: new Gio.SimpleProxyResolver()});
+        this.session = new Soup.Session({timeout: 8, remote_connectable: new Gio.UnixSocketAddress({path: this.socketPath}), proxy_resolver: new Gio.SimpleProxyResolver()});
         this.session.add_feature(new Soup.CookieJar());
         this.closed = false;
         this.login = null;

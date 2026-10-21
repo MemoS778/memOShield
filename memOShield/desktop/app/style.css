@@ -1,0 +1,14 @@
+window { background: #0b0d10; color: #e6e8eb; }
+headerbar { background: #101318; border-bottom: 1px solid #292d35; }
+.brand { color: #e5484d; font-weight: 800; font-size: 20px; }
+.sidebar { background: #101318; padding: 20px 12px; border-right: 1px solid #292d35; min-width: 175px; }
+.sidebar button { background: transparent; border-radius: 6px; padding: 12px; }
+.sidebar button:hover { background: #292027; color: #ff7478; }
+.content { padding: 28px; }
+.page-title { font-size: 27px; font-weight: 800; margin-bottom: 8px; }
+.shield-card { background: #14181e; border: 1px solid #2a3039; border-radius: 10px; padding: 20px; }
+.shield-card.critical { border-left: 3px solid #e5484d; }
+.heading { font-weight: 700; }
+.monospace, .status-line { font-family: monospace; font-size: 12px; }
+.status-line { padding: 12px 20px; color: #b5bbc6; border-top: 1px solid #292d35; }
+button:focus-visible { outline: 2px solid #e5484d; }

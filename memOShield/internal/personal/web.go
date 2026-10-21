@@ -2,11 +2,9 @@ package personal
 
 import (
 	"crypto/subtle"
-	"embed"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"net"
 	"net/http"
 	"strconv"
@@ -14,9 +12,6 @@ import (
 	"sync"
 	"time"
 )
-
-//go:embed ui/*
-var assets embed.FS
 
 type session struct{ expires time.Time }
 type Web struct {
@@ -41,15 +36,6 @@ func NewWeb(e *Engine, token string) http.Handler {
 	mux.HandleFunc("GET /api/allowlist", w.auth(w.allowlist))
 	mux.HandleFunc("POST /api/allowlist", w.auth(w.allow))
 	mux.HandleFunc("GET /api/stream", w.auth(w.stream))
-	ui, _ := fs.Sub(assets, "ui")
-	static := http.FileServer(http.FS(ui))
-	mux.HandleFunc("GET /", func(rw http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" && r.URL.Path != "/app.js" && r.URL.Path != "/style.css" {
-			http.NotFound(rw, r)
-			return
-		}
-		static.ServeHTTP(rw, r)
-	})
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
@@ -79,6 +65,29 @@ func NewWeb(e *Engine, token string) http.Handler {
 			r.Body = http.MaxBytesReader(rw, r.Body, 4096)
 		}
 		mux.ServeHTTP(rw, r)
+	})
+}
+
+// NewLocalAPI exposes only JSON routes on a permission-protected Unix socket.
+// Keep the existing session, origin and payload validation as defense in depth.
+func NewLocalAPI(e *Engine, token string) http.Handler {
+	handler := NewWeb(e, token)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/api/") {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Host != "localhost" {
+			http.Error(w, "invalid host", 403)
+			return
+		}
+		r = r.Clone(r.Context())
+		r.RemoteAddr = "127.0.0.1:0"
+		r.Host = e.config.Listen
+		if r.Header.Get("Origin") == "http://localhost" {
+			r.Header.Set("Origin", "http://"+r.Host)
+		}
+		handler.ServeHTTP(w, r)
 	})
 }
 

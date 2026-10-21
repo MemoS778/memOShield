@@ -1,5 +1,9 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.memoshield" path="/org/gnome/shell/extensions/memoshield/">
+    <key name="socket-path" type="s">
+      <default>''</default>
+      <summary>Unix socket yolu; boşsa standart XDG yolu</summary>
+    </key>
     <key name="service-url" type="s">
       <default>'http://127.0.0.1:5000'</default>
       <summary>Yerel servis adresi</summary>

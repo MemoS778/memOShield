@@ -5,8 +5,8 @@ export default class Preferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         const page = new Adw.PreferencesPage({title: 'memOShield', icon_name: 'security-high-symbolic'});
-        const group = new Adw.PreferencesGroup({title: 'Yerel servis bağlantısı', description: 'Eklenti ayrı çalışan memoshield-personal servisine bağlanır. Anahtar yalnızca yerel dosyadan okunur; ayarlara kaydedilmez.'});
-        for (const [key, title] of [['service-url', 'Servis adresi (http://127.0.0.1:5000)'], ['token-path', 'Anahtar dosyasının tam yolu (varsayılan için boş)']]) {
+        const group = new Adw.PreferencesGroup({title: 'Yerel servis bağlantısı', description: 'Unix socket üzerinden bağlanır. Tarayıcı veya TCP portu kullanılmaz. Anahtar yerel dosyadan otomatik okunur.'});
+        for (const [key, title] of [['socket-path', 'Unix socket yolu (varsayılan için boş)'], ['token-path', 'Anahtar dosyasının tam yolu (varsayılan için boş)']]) {
             const row = new Adw.EntryRow({title, text: settings.get_string(key), show_apply_button: true});
             row.connect('apply', () => settings.set_string(key, row.text.trim()));
             group.add(row);

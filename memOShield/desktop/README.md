@@ -1,59 +1,61 @@
-# GNOME panel eklentisi
+# memOShield masaüstü
 
-GNOME Shell **51** için `memoshield@MemoS778`. Tarayıcı sekmesi yerine üst paneldeki menüden çalışır. KDE Plasma ve tarayıcı eklentisi değildir.
-
-## Neler sunar?
-
-- 15 saniyede bir çalışma modu, sensör durumu ve en yeni 200 kayıt içindeki olay sayısı.
-- Son 5 olayın zamanı, kaynak IP'si ve kanıt metni; IP kopyalama ve güvenilir listeye ekleme.
-- `manual` / `auto` modunda olayın IP'sini 10 dakika engelleme ve mevcut süreli engelleme taleplerini kaldırma.
-- Yerel servis kapalı olduğunda bağlantı hatası. Bağlantı varlığı, sistemin saldırısız olduğunu göstermez.
-- Servis adresi ve anahtar dosyası yolu için GNOME ayar penceresi.
+GTK4/libadwaita ile siyah–kırmızı yerel uygulama. WebView, tarayıcı paneli veya TCP dinleyicisi yoktur. GNOME eklentisi yalnızca kısa durum, son üç olay ve uygulamayı açma işlevi sunar. Pencereyi kapatmak arka plan servisini durdurmaz.
 
 ## Gereksinimler
 
-GNOME Shell 51, GJS, libsoup 3, GNOME Extensions araçları; ayar penceresi için GTK4/libadwaita. Ayrıca [kurulum belgesindeki](../docs/deployment.md) `memoshield-personal` kullanıcı servisi çalışmalıdır. Gerçek engelleme için ayrı firewall yardımcı süreci gerekir.
+İlk doğrulama hedefi CachyOS/Arch + GNOME 51: Go 1.26+, GJS, GTK4, libadwaita, libsoup 3. Native pencere GNOME Shell'e bağımlı değildir; Hyprland üzerinde ayrı doğrulama henüz yapılmadı. Diğer dağıtımlar sonraki aşamadır.
 
-Eklenti sensör motoru değildir. Paneli veya eklentiyi kapatmak servisi durdurmaz; var olan kernel engelleri süreleri dolana kadar kalabilir. Tarayıcı panelini açmak zorunlu değildir, ancak mevcut loopback API servisi çalışmaya devam eder.
-
-## Paketleme ve kurulum
+## Kurulum
 
 `memOShield/go.mod` dosyasının bulunduğu dizinde:
 
 ```sh
+go build -o memoshield-personal .
+sh desktop/install.sh
+```
+
+Mevcut kullanıcı servisinin ExecStart yolu yeni binary'yi göstermelidir. Servis çalışırken binary'yi üzerine yazmak yerine yeni bir dosyaya derleyip atomik olarak değiştirin. Ardından:
+
+```sh
+systemctl --user restart memoshield-personal.service
+~/.local/bin/memoshield-desktop
+```
+
+Uygulamalar menüsünden de **memOShield** açılabilir. Tek uygulama kimliği aynı kullanıcı oturumunda ikinci pencere yerine mevcut pencereye odaklanır.
+
+Varsayılan socket `$XDG_RUNTIME_DIR/memoshield/control.sock`. Runtime dizini yoksa `~/.local/state/memoshield/memoshield/control.sock` kullanılır (`XDG_STATE_HOME` desteklenir). Servis ve uygulama için `MEMOSHIELD_SOCKET` aynı mutlak yolu göstermelidir. Anahtar standart state dizinindeki `memoshield/access-token` dosyasından otomatik okunur. Özel `MEMOSHIELD_DATA_DIR` kullanıyorsanız `XDG_STATE_HOME` veya istemcinin token yolu da eşleştirilmelidir.
+
+## GNOME hızlı erişim
+
+```sh
 mkdir -p build
-gnome-extensions pack desktop/gnome --extra-source=client.js --out-dir=build --force
+gnome-extensions pack desktop/gnome --extra-source=client.js --extra-source=model.js --out-dir=build --force
 gnome-extensions install --force build/memoshield@MemoS778.shell-extension.zip
 gnome-extensions enable memoshield@MemoS778
 ```
 
-Yeni eklenti mevcut oturumda tanınmazsa oturumu kapatıp yeniden açın ve son komutu tekrar çalıştırın. Wayland oturumunda Shell'i zorla yeniden başlatmayın. Durum ve ayarlar:
+Gerekirse oturumu kapatıp açın. Eklenti ayarlarında özel socket ve anahtar yolu seçilebilir. Yeni ayarlar eklenti yeniden etkinleştirildiğinde uygulanır.
+
+## Mevcut ekranlar
+
+- Genel bakış: son olaylar ve sensör durumları.
+- Olay geçmişi: en yeni 200 olay, güvenilir liste ve süreli engel işlemleri.
+- Koruma: engel durumları ve güvenilir IP/CIDR yönetimi.
+- Ayarlar: bağlantı ve sensör tanılama; servis modu burada değiştirilemez.
+- Değişiklikler: henüz hazırlık ekranı. Envanter/sistem değişikliği sensörleri uygulanmadı.
+
+`monitor` modunda engelleme kapalıdır. Gerçek engelleme ayrı firewall yardımcısı gerektirir. `applied` son başarılı nft işlemini gösterir, kesintisiz bağımsız trafik doğrulaması değildir. SSH/Suricata/helper kurulumu için [deployment.md](../docs/deployment.md).
+
+## Doğrulama
 
 ```sh
-gnome-extensions info memoshield@MemoS778
-gnome-extensions prefs memoshield@MemoS778
-systemctl --user status memoshield-personal.service
+go test -race ./...
+go vet ./...
+glib-compile-schemas --strict --dry-run desktop/gnome/schemas
+MEMOSHIELD_UI_TEST=1 go test -count=1 -run TestNativeUnixSocketClient ./internal/personal
 ```
 
-Varsayılan bağlantı `http://127.0.0.1:5000`; anahtar `${XDG_STATE_HOME:-$HOME/.local/state}/memoshield/access-token` dosyasından okunur. Özel `MEMOSHIELD_DATA_DIR` veya port kullanıyorsanız eklenti ayarlarını buna göre değiştirin. Anahtarın kendisi GSettings'e kaydedilmez. HTTP proxy kullanılmaz, yönlendirmeler takip edilmez, yalnızca izin verilen loopback adreslerine bağlanılır.
+Son komut grafik oturumu veya Xvfb gerektirir. Geçici SQLite, özel Unix socket, gerçek GJS/libsoup istemcisi ve GTK sayfalarını kullanır; kişisel verileri veya host firewall'u değiştirmez. GTK testi görünümün görsel/erişilebilirlik denetiminin yerine geçmez. Önceki `tests/ui` Playwright dosyaları eski tarayıcı sürümüne aittir ve güncel CI'da çalıştırılmaz.
 
-Kaldırmak için:
-
-```sh
-gnome-extensions disable memoshield@MemoS778
-gnome-extensions uninstall memoshield@MemoS778
-```
-
-Bu işlem kişisel servisi ve veritabanını kaldırmaz.
-
-## Geliştirme testi
-
-GJS ve libsoup 3 kurulu ortamda, `tests/ui` dizininde:
-
-```sh
-npm ci
-npx playwright install chromium
-GNOME_CLIENT_TEST=1 npm test
-```
-
-Test geçici bir servis/veritabanı kullanır. GJS istemcisinin gerçek HTTP girişini, cookie kullanımını, izin verilen adresleri, güvenilir listeyi, monitor modundaki engelleme reddini ve yeniden girişini doğrular; ardından tarayıcı testlerini çalıştırır. Bu test GNOME Shell menüsünün görsel testi değildir.
+Kaldırma: `~/.local/bin/memoshield-desktop`, `$XDG_DATA_HOME/memoshield` ve `$XDG_DATA_HOME/applications/io.github.MemoS778.memOShield.desktop` dosyalarını kaldırın (`XDG_DATA_HOME` varsayılanı `~/.local/share`). Bu işlem servis veya olay veritabanını silmez.

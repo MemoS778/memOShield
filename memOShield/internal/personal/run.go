@@ -46,12 +46,45 @@ func Run(parent context.Context) error {
 		return err
 	}
 	engine := NewEngine(store, c, firewallctl.Client{Socket: c.FirewallSocket})
-	listener, err := net.Listen("tcp", c.Listen)
+	// Private IPC only; the application does not open a TCP port.
+	dir := filepath.Dir(c.Socket)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || int(stat.Uid) != os.Getuid() || info.Mode().Perm()&0077 != 0 {
+		return fmt.Errorf("control socket directory must be owned by this user with mode 0700")
+	}
+	if info, err := os.Lstat(c.Socket); err == nil {
+		if info.Mode()&os.ModeSocket == 0 {
+			return fmt.Errorf("control socket path is not a socket")
+		}
+		conn, dialErr := net.DialTimeout("unix", c.Socket, time.Second)
+		if dialErr == nil {
+			conn.Close()
+			return fmt.Errorf("control socket already in use")
+		}
+		if err := os.Remove(c.Socket); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	listener, err := net.Listen("unix", c.Socket)
 	if err != nil {
 		return err
 	}
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
+	defer listener.Close()
+	defer os.Remove(c.Socket)
+	if err := os.Chmod(c.Socket, 0600); err != nil {
+		return err
+	}
 	var workers sync.WaitGroup
 	start := func(fn func(context.Context)) { workers.Add(1); go func() { defer workers.Done(); fn(ctx) }() }
 	if c.Journal {
@@ -82,10 +115,10 @@ func Run(parent context.Context) error {
 			}
 		}
 	})
-	server := &http.Server{Handler: NewWeb(engine, token), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384, BaseContext: func(net.Listener) context.Context { return ctx }}
+	server := &http.Server{Handler: NewLocalAPI(engine, token), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384, BaseContext: func(net.Listener) context.Context { return ctx }}
 	result := make(chan error, 1)
 	go func() { result <- server.Serve(listener) }()
-	log.Printf("memOShield Personal: http://%s (mode=%s)", c.Listen, c.Mode)
+	log.Printf("memOShield Personal: unix:%s (mode=%s)", c.Socket, c.Mode)
 	log.Printf("Login token file: %s (not printed in logs)", filepath.Join(c.DataDir, "access-token"))
 	select {
 	case <-ctx.Done():

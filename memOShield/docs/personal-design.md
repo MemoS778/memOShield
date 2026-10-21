@@ -1,5 +1,7 @@
 # Kişisel sürüm mimarisi ve sınırlar
 
+> Güncel arayüz GTK4/libadwaita uygulaması ve sade GNOME hızlı erişimidir. Go servisi yalnızca kullanıcıya özel Unix socket üzerinden JSON sunar; TCP/web paneli yoktur. Aşağıdaki web/SSE görünüm açıklamaları önceki sürüme aittir. Yeni envanter ve değişiklik sensörleri henüz uygulanmadı. Güncel kurulum: [masaüstü rehberi](../desktop/README.md).
+
 ```text
 root-owned SSH journal ─┐
                        ├─ parser → dedup + SQLite → SSE → yerel panel

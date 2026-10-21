@@ -18,20 +18,10 @@ jobs:
       - run: go test -race ./...
       - run: go vet ./...
       - run: go build ./...
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: memOShield/tests/ui/package-lock.json
-      - run: node --check internal/personal/ui/app.js
-      - run: npm ci
-        working-directory: memOShield/tests/ui
-      - run: npx playwright install --with-deps chromium
-        working-directory: memOShield/tests/ui
-      - run: sudo apt-get update && sudo apt-get install -y gjs gir1.2-soup-3.0
-      - run: npm test
-        working-directory: memOShield/tests/ui
-        env:
-          GNOME_CLIENT_TEST: '1'
+      - run: sudo apt-get update && sudo apt-get install -y gjs gir1.2-soup-3.0 gir1.2-adw-1 xvfb
+      - run: go test -count=1 -run TestNativeUnixSocketClient ./internal/personal
+      - run: glib-compile-schemas --strict --dry-run desktop/gnome/schemas
+      - run: xvfb-run -a gjs -m desktop/app/main.js --help
+      - run: xvfb-run -a env MEMOSHIELD_UI_TEST=1 go test -count=1 -run TestNativeUnixSocketClient ./internal/personal
       - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
       - run: docker build -t memoshield-test .
