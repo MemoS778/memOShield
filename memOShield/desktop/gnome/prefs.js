@@ -12,7 +12,7 @@ export default class Preferences extends ExtensionPreferences {
             group.add(row);
         }
         page.add(group);
-        page.add(new Adw.PreferencesGroup({title: 'Çalışma biçimi', description: 'Durum 15 saniyede bir yenilenir. Servis kapalıysa eklenti bunu bildirir. İzleme modunda engelleme kapalıdır. Eklentiyi kapatmak arka plan servisini veya mevcut süreli engelleri durdurmaz.'}));
+        page.add(new Adw.PreferencesGroup({title: 'Çalışma biçimi', description: 'Durum 15 saniyede bir yenilenir. Eklenti kısa durum, son olaylar ve masaüstü uygulamasına erişim sunar. Eklentiyi kapatmak arka plan servisini veya mevcut süreli engelleri durdurmaz.'}));
         window.add(page);
     }
 }

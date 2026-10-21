@@ -66,7 +66,7 @@ func TestNativeUnixSocketClient(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, gjs, "-m", "../../desktop/app/client-test.js")
-	cmd.Env = append(os.Environ(), "MEMOSHIELD_SOCKET="+socket, "XDG_STATE_HOME="+dir)
+	cmd.Env = append(os.Environ(), "MEMOSHIELD_SOCKET="+socket, "XDG_STATE_HOME="+dir, "MEMOSHIELD_DATA_DIR="+filepath.Join(dir, "memoshield"))
 	// Client's default token path is under the memoshield state directory.
 	if err := os.Mkdir(filepath.Join(dir, "memoshield"), 0700); err != nil {
 		t.Fatal(err)
@@ -80,7 +80,8 @@ func TestNativeUnixSocketClient(t *testing.T) {
 	if os.Getenv("MEMOSHIELD_UI_TEST") == "1" {
 		ui := exec.CommandContext(ctx, gjs, "-m", "../../desktop/app/main.js")
 		ui.Env = append(cmd.Env, "MEMOSHIELD_UI_SMOKE=1")
-		if output, err := ui.CombinedOutput(); err != nil {
+		output, err := ui.CombinedOutput()
+		if err != nil || !strings.Contains(string(output), "Native GTK pages: PASS") {
 			t.Fatalf("GTK window: %v\n%s", err, output)
 		}
 	}

@@ -1,40 +1,64 @@
-# Kişisel sürüm mimarisi ve sınırlar
+# Mimari ve geliştirme planı
 
-> Güncel arayüz GTK4/libadwaita uygulaması ve sade GNOME hızlı erişimidir. Go servisi yalnızca kullanıcıya özel Unix socket üzerinden JSON sunar; TCP/web paneli yoktur. Aşağıdaki web/SSE görünüm açıklamaları önceki sürüme aittir. Yeni envanter ve değişiklik sensörleri henüz uygulanmadı. Güncel kurulum: [masaüstü rehberi](../desktop/README.md).
+## Çalışan yapı
 
 ```text
-root-owned SSH journal ─┐
-                       ├─ parser → dedup + SQLite → SSE → yerel panel
-Suricata EVE alerts ────┘                  │
-                     fresh SSH rule / manual decision
-                                         ↓
-                             persistent desired bans
-                                         ↓
-                           protected Unix socket helper
-                                         ↓
-                           private nftables INPUT sets
+Root-owned SSH journal ─┐
+                       ├─ doğrulama → tekrar önleme → SQLite
+Suricata EVE alerts ────┘                               │
+                                                       ↓
+                                            özel Unix socket API
+                                               ↙             ↘
+                                  GTK4/libadwaita pencere   GNOME hızlı erişim
+
+Taze SSH eşiği / kullanıcı kararı
+               ↓
+       kalıcı engel talebi
+               ↓
+    ayrı yetkili firewall yardımcısı
+               ↓
+    nftables INPUT setleri + kernel timeout
 ```
 
-## Güven sınırları
+Go servisi, GTK uygulaması ve GNOME eklentisi normal kullanıcıyla çalışır. Yalnızca ayrı firewall yardımcısı yetkilidir. Web paneli, WebView veya TCP dinleyicisi yoktur. JSON protokolü Unix socket üzerinden taşınır; oturum, Host, Origin ve gövde doğrulaması yerel API'de yapılır.
 
-- HTTP yalnızca literal loopback bind, doğrulanmış Host, 256 bit token ve HttpOnly/SameSite oturumla kullanılır. Mutasyonlar exact Origin + JSON gerektirir. Proxy başlıkları kullanılmaz.
-- Tarayıcıya verilen metinler `textContent` ile oluşturulur. CDN/inline script yoktur. Yönetim uçları kimlik doğrulaması ister; kayıt üretme veya tüm olayları silme API'si yoktur.
-- Suricata dosyası bir sensör girdisidir; alert algılanması başarılı saldırı anlamına gelmez. Kaynak IP'ye dayanarak kişilik/kimlik atfedilmez. EVE otomatik IPS'ye bağlanmaz.
-- SSH otomatik politika root journald metadata, zaman penceresi ve kalıcı deduplikasyon gerektirir. Başarılı oturumlar ayrı gösterilir.
-- Engelleme transaction başarısından önce başarı bildirilmez. İşlem başarısızsa istenen durum kalır ve yeniden denenir; UI `unconfirmed` gösterir. Yapılandırılmış modda hiçbir örtük sudo çağrısı yoktur.
-- Unix socket kullanıcısının o bilgisayara süreli INPUT IP engeli koyma yetkisi vardır. Aynı kullanıcı hesabı ele geçirilirse bu yetki ve panel token'ı da ele geçirilmiş sayılır.
+GTK uygulaması ayrıntılı arayüzdür. GNOME eklentisi kısa durum, son üç olay ve uygulama başlatmayı sunar. Pencereyi veya eklentiyi kapatmak servisi durdurmaz. Kullanıcı servisi oturumla çalışır; oturum dışı çalışma ayrıca yapılandırılmalıdır.
 
-## Mevcut sınırlar / sıradaki işler
+## Sıradaki aşama: Bilgisayarımda ne değişti?
 
-1. SSH dışı servislerin (RDP, Samba, kamera/NVR) günlük adaptörleri henüz yok.
-2. Port taraması görünürlüğü için çalışan Suricata + uygun kurallar gerekir. EVE okuyucusu paket yakalama motoru değildir.
-3. Güvenilir liste/engel yönetim işlemleri için ayrı değiştirilemez audit izi ve kullanıcı ayrımı sonraki sürümdür; şu an tek kullanıcı ve son durum kaydı vardır.
-4. Journal vacuum sonucu kayıp cursor otomatik sıfırlanmaz; sensör görünür hata verir. Rotation/cursor kurtarma arayüzü eklenecek.
-5. Suricata heartbeat/stats ile gerçek sensör canlılığı henüz doğrulanmaz; UI sadece dosya okuma ve son alert durumunu açıklar.
-6. Wi-Fi ağ değişiminde otomatik profil/CIDR politikası ve DHCP cihaz geçmişi henüz yok. Helper yerel adres/gateway korumasını her transaction'da yeniler.
-7. Nftables entegrasyonu test ortamında doğrulanmalıdır; sadece testleri geçmek gerçek host üzerinde IPS'nin aktif olduğunu göstermez.
-8. Yönetim için loopback HTTP paneli ve aynı API'ye bağlanan GNOME Shell 51 panel eklentisi vardır. Eklenti 15 saniyelik snapshot alır; tarayıcı panelindeki SSE, tüm filtreler ve JSON dışa aktarımı eklentide yoktur. Tarayıcı eklentisi, KDE Plasma eklentisi ve bağımsız masaüstü penceresi henüz yoktur.
+Bu bölüm plandır; aşağıdaki sensörler henüz uygulanmadı.
+
+1. **Kalıcı envanter:** İzlenen nesneler için ilk/son gözlem, nesne kimliği, önceki/yeni değer ve veri kaynağı.
+2. **Dinleme noktaları:** Yeni/kapanan soketler ve dinleme adresi değişiklikleri; IPv4/IPv6 ve mümkünse süreç/servis bilgisi.
+3. **Başlangıç girdileri:** Seçilmiş kullanıcı/sistem servisleri ve otomatik başlangıç girdileri.
+4. **SSH ayarları:** Include ve koşullu Match kapsamını hesaba katan seçilmiş güvenlik ayarı değişiklikleri.
+5. **Açıklanabilir olay kartları:** Ne değişti, hangi kanıt var, neden önemli olabilir, ne yapılabilir?
+
+### Kabul ilkeleri
+
+- İlk görülen durum güvenli kabul edilmez; başlangıç referansıdır.
+- İlk taramadaki nesneler yeni oluşmuş gibi bildirilmez.
+- Okuma/yetki hatası, nesnelerin kaldırılması olarak yorumlanmaz.
+- Yeniden başlatma aynı değişikliği tekrar tekrar üretmez.
+- Gözlem zamanı ile değişikliğin kesin gerçekleşme zamanı ayrılır.
+- Yeni servis veya port tek başına saldırı olarak etiketlenmez.
+- Bir olayı okumak, onu beklenen değişiklik olarak onaylamak değildir.
+- İlk aşamada değişiklik sensörleri otomatik sistem müdahalesi başlatmaz.
+
+## Sonraki uyumluluk aşamaları
+
+İlk ortam CachyOS/Arch + GNOME 51. GTK pencere GNOME Shell'e bağımlı değildir; Hyprland uyumluluğu ayrıca test edilecek. Diğer dağıtımlar bu doğrulamadan sonra ele alınacak. Hyprland üzerinde GNOME eklentisi kullanılmaz.
+
+## Mevcut teknik sınırlar
+
+- SSH dışı günlük adaptörleri, dosya bütünlüğü sensörü ve uygulama bazlı dış bağlantı engelleme yoktur.
+- Suricata'nın paket yakalaması ve kural yönetimi harici kurulumun sorumluluğudur. EVE dosyasını okumak gerçek sensör canlılığını kanıtlamaz.
+- Journal vacuum sonrası geçersiz cursor otomatik sıfırlanmaz; sensör hata verir.
+- Değiştirilemez audit izi ve çok kullanıcılı yetkilendirme yoktur.
+- `applied` son başarılı nft transaction'ıdır; bağımsız sürekli ruleset/trafik doğrulaması değildir.
 
 ## Doğrulama
 
-Testler gerçek SQLite kullanır: olay tekrarları, zaman penceresi, eksik JSON/Origin/Host/auth, gerçek HTTP SSE akışı, EVE partial-write/rename rotation, engel süresi ve yardımcı süreç hataları. Fake firewall gerçek bilgisayarın kurallarını değiştirmez. Rootless network namespace desteklenirse ek nft smoke testi yalnızca o ayrı namespace içinde çalışır.
+Go testleri gerçek SQLite, SSH kaynak doğrulaması, zaman pencereleri, tekrar önleme, EVE partial-write/rotation ve firewall hata durumlarını kapsar. Yerel istemci testi gerçek Unix socket ve GJS/libsoup kullanır. İsteğe bağlı GTK smoke testi beş sayfayı açar. HTTP protokol birim testleri yalnızca test sunucusunda auth/Origin/Host/SSE davranışını sınar; üretim servisi TCP açmaz.
+
+Kurulum: [deployment.md](deployment.md). Güven sınırları: [SECURITY.md](../SECURITY.md).

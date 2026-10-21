@@ -1,5 +1,5 @@
 [Unit]
-Description=memOShield Personal IDS dashboard and sensors
+Description=memOShield local security service and sensors
 After=network.target
 
 [Service]

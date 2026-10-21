@@ -2,25 +2,15 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Soup from 'gi://Soup?version=3.0';
 
-export function localOrigin(value) {
-    const uri = GLib.Uri.parse(value, GLib.UriFlags.NONE);
-    if (uri.get_scheme() !== 'http' ||
-        !['127.0.0.1', '::1', 'localhost'].includes(uri.get_host()) ||
-        !['', '/'].includes(uri.get_path()) || uri.get_userinfo() !== null ||
-        uri.get_query() !== null || uri.get_fragment() !== null ||
-        uri.get_port() < 1 || uri.get_port() > 65535)
-        throw new Error('Adres http://127.0.0.1:5000 biçiminde yerel bir adres olmalı.');
-    const host = uri.get_host() === '::1' ? '[::1]' : uri.get_host();
-    return `http://${host}:${uri.get_port()}`;
-}
-
 export class Client {
-    constructor(url, tokenPath = '') {
+    constructor(socketPath = '', tokenPath = '') {
         this.origin = 'http://localhost';
-        this.socketPath = url && url.startsWith('/') ? url : GLib.getenv('MEMOSHIELD_SOCKET') || GLib.build_filenamev([
+        this.socketPath = socketPath || GLib.getenv('MEMOSHIELD_SOCKET') || GLib.build_filenamev([
             GLib.getenv('XDG_RUNTIME_DIR') || GLib.build_filenamev([GLib.getenv('XDG_STATE_HOME') || GLib.build_filenamev([GLib.get_home_dir(), '.local', 'state']), 'memoshield']),
             'memoshield', 'control.sock',
         ]);
+        if (!GLib.path_is_absolute(this.socketPath))
+            throw new Error('Unix socket yolu mutlak bir dosya yolu olmalı.');
         this.tokenPath = tokenPath || (GLib.getenv('MEMOSHIELD_DATA_DIR') ? GLib.build_filenamev([GLib.getenv('MEMOSHIELD_DATA_DIR'), 'access-token']) : GLib.build_filenamev([
             GLib.getenv('XDG_STATE_HOME') || GLib.build_filenamev([GLib.get_home_dir(), '.local', 'state']),
             'memoshield', 'access-token',

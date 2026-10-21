@@ -24,4 +24,3 @@ jobs:
       - run: xvfb-run -a gjs -m desktop/app/main.js --help
       - run: xvfb-run -a env MEMOSHIELD_UI_TEST=1 go test -count=1 -run TestNativeUnixSocketClient ./internal/personal
       - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
-      - run: docker build -t memoshield-test .

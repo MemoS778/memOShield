@@ -9,6 +9,6 @@ go build -o memoshield-personal .
 ./memoshield-personal
 ```
 
-Kurulum: [deployment.md](docs/deployment.md). Mimari: [personal-design.md](docs/personal-design.md).
+Masaüstü kurulumu: [desktop/README.md](desktop/README.md). Sensörler ve firewall: [deployment.md](docs/deployment.md). Mimari ve plan: [personal-design.md](docs/personal-design.md).
 
-Uygulama `internal/personal`, ayrı firewall yardımcı süreci `cmd/memoshield-fw` ve `internal/firewallctl` üzerinden çalışır. Panel dosyaları `internal/personal/ui` içinden binary'ye gömülür. Güvenlik modeli: [SECURITY.md](SECURITY.md).
+Servis `internal/personal`, ayrı firewall yardımcı süreci `cmd/memoshield-fw` ve `internal/firewallctl` üzerinden çalışır. Yerel GTK uygulaması `desktop/app`, GNOME hızlı erişimi `desktop/gnome` içindedir. İletişim Unix socket üzerinden gerçekleşir; web paneli yoktur. Envanter/değişiklik sensörleri sonraki aşamadır. Güvenlik modeli: [SECURITY.md](SECURITY.md).

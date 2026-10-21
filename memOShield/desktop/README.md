@@ -4,7 +4,7 @@ GTK4/libadwaita ile siyah–kırmızı yerel uygulama. WebView, tarayıcı panel
 
 ## Gereksinimler
 
-İlk doğrulama hedefi CachyOS/Arch + GNOME 51: Go 1.26+, GJS, GTK4, libadwaita, libsoup 3. Native pencere GNOME Shell'e bağımlı değildir; Hyprland üzerinde ayrı doğrulama henüz yapılmadı. Diğer dağıtımlar sonraki aşamadır.
+İlk doğrulama hedefi CachyOS/Arch + GNOME 51: Go 1.26+, GJS, GTK 4.10+, libadwaita, libsoup 3. Native pencere GNOME Shell'e bağımlı değildir; Hyprland üzerinde ayrı doğrulama henüz yapılmadı. Diğer dağıtımlar sonraki aşamadır.
 
 ## Kurulum
 
@@ -24,13 +24,13 @@ systemctl --user restart memoshield-personal.service
 
 Uygulamalar menüsünden de **memOShield** açılabilir. Tek uygulama kimliği aynı kullanıcı oturumunda ikinci pencere yerine mevcut pencereye odaklanır.
 
-Varsayılan socket `$XDG_RUNTIME_DIR/memoshield/control.sock`. Runtime dizini yoksa `~/.local/state/memoshield/memoshield/control.sock` kullanılır (`XDG_STATE_HOME` desteklenir). Servis ve uygulama için `MEMOSHIELD_SOCKET` aynı mutlak yolu göstermelidir. Anahtar standart state dizinindeki `memoshield/access-token` dosyasından otomatik okunur. Özel `MEMOSHIELD_DATA_DIR` kullanıyorsanız `XDG_STATE_HOME` veya istemcinin token yolu da eşleştirilmelidir.
+Varsayılan socket `$XDG_RUNTIME_DIR/memoshield/control.sock`. Runtime dizini yoksa `~/.local/state/memoshield/memoshield/control.sock` kullanılır (`XDG_STATE_HOME` desteklenir). Servis ve uygulama için `MEMOSHIELD_SOCKET` aynı mutlak yolu göstermelidir. Anahtar standart state dizinindeki `memoshield/access-token` dosyasından otomatik okunur. Özel `MEMOSHIELD_DATA_DIR` kullanıyorsanız masaüstü uygulamasını da aynı ortam değişkeniyle başlatın; GNOME eklentisinde anahtar dosyasının tam yolunu seçin.
 
 ## GNOME hızlı erişim
 
 ```sh
 mkdir -p build
-gnome-extensions pack desktop/gnome --extra-source=client.js --extra-source=model.js --out-dir=build --force
+gnome-extensions pack desktop/gnome --extra-source=client.js --out-dir=build --force
 gnome-extensions install --force build/memoshield@MemoS778.shell-extension.zip
 gnome-extensions enable memoshield@MemoS778
 ```
@@ -56,6 +56,6 @@ glib-compile-schemas --strict --dry-run desktop/gnome/schemas
 MEMOSHIELD_UI_TEST=1 go test -count=1 -run TestNativeUnixSocketClient ./internal/personal
 ```
 
-Son komut grafik oturumu veya Xvfb gerektirir. Geçici SQLite, özel Unix socket, gerçek GJS/libsoup istemcisi ve GTK sayfalarını kullanır; kişisel verileri veya host firewall'u değiştirmez. GTK testi görünümün görsel/erişilebilirlik denetiminin yerine geçmez. Önceki `tests/ui` Playwright dosyaları eski tarayıcı sürümüne aittir ve güncel CI'da çalıştırılmaz.
+Son komut grafik oturumu veya Xvfb gerektirir. Geçici SQLite, özel Unix socket, gerçek GJS/libsoup istemcisi ve GTK sayfalarını kullanır; kişisel verileri veya host firewall'u değiştirmez. GTK testi görünümün görsel/erişilebilirlik denetiminin yerine geçmez.
 
 Kaldırma: `~/.local/bin/memoshield-desktop`, `$XDG_DATA_HOME/memoshield` ve `$XDG_DATA_HOME/applications/io.github.MemoS778.memOShield.desktop` dosyalarını kaldırın (`XDG_DATA_HOME` varsayılanı `~/.local/share`). Bu işlem servis veya olay veritabanını silmez.

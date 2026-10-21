@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,7 +13,7 @@ import (
 )
 
 type session struct{ expires time.Time }
-type Web struct {
+type API struct {
 	engine   *Engine
 	token    string
 	mu       sync.Mutex
@@ -23,8 +22,10 @@ type Web struct {
 	streams  chan struct{}
 }
 
-func NewWeb(e *Engine, token string) http.Handler {
-	w := &Web{engine: e, token: token, sessions: make(map[string]session), streams: make(chan struct{}, 8)}
+// NewLocalAPI serves authenticated JSON over the private Unix socket.
+// "localhost" is the protocol authority, not a TCP listener address.
+func NewLocalAPI(e *Engine, token string) http.Handler {
+	w := &API{engine: e, token: token, sessions: make(map[string]session), streams: make(chan struct{}, 8)}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/login", w.login)
 	mux.HandleFunc("POST /api/logout", w.auth(w.logout))
@@ -37,20 +38,11 @@ func NewWeb(e *Engine, token string) http.Handler {
 	mux.HandleFunc("POST /api/allowlist", w.auth(w.allow))
 	mux.HandleFunc("GET /api/stream", w.auth(w.stream))
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
-			http.Error(rw, "local access only", 403)
-			return
-		}
-		_, port, _ := net.SplitHostPort(e.config.Listen)
-		if r.Host != e.config.Listen && r.Host != net.JoinHostPort("localhost", port) {
+		if r.Host != "localhost" {
 			http.Error(rw, "invalid host", 403)
 			return
 		}
-		rw.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'")
 		rw.Header().Set("X-Content-Type-Options", "nosniff")
-		rw.Header().Set("X-Frame-Options", "DENY")
-		rw.Header().Set("Referrer-Policy", "no-referrer")
 		rw.Header().Set("Cache-Control", "no-store")
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			// Exact Origin validation protects all mutations, including login/logout.
@@ -65,29 +57,6 @@ func NewWeb(e *Engine, token string) http.Handler {
 			r.Body = http.MaxBytesReader(rw, r.Body, 4096)
 		}
 		mux.ServeHTTP(rw, r)
-	})
-}
-
-// NewLocalAPI exposes only JSON routes on a permission-protected Unix socket.
-// Keep the existing session, origin and payload validation as defense in depth.
-func NewLocalAPI(e *Engine, token string) http.Handler {
-	handler := NewWeb(e, token)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/api/") {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Host != "localhost" {
-			http.Error(w, "invalid host", 403)
-			return
-		}
-		r = r.Clone(r.Context())
-		r.RemoteAddr = "127.0.0.1:0"
-		r.Host = e.config.Listen
-		if r.Header.Get("Origin") == "http://localhost" {
-			r.Header.Set("Origin", "http://"+r.Host)
-		}
-		handler.ServeHTTP(w, r)
 	})
 }
 
@@ -111,7 +80,7 @@ func decode(r *http.Request, v interface{}) error {
 	return nil
 }
 
-func (w *Web) loggedIn(r *http.Request) bool {
+func (w *API) loggedIn(r *http.Request) bool {
 	c, err := r.Cookie("memoshield_session")
 	if err != nil {
 		return false
@@ -125,7 +94,7 @@ func (w *Web) loggedIn(r *http.Request) bool {
 	}
 	return true
 }
-func (w *Web) auth(next http.HandlerFunc) http.HandlerFunc {
+func (w *API) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		if !w.loggedIn(r) {
 			fail(rw, 401, fmt.Errorf("authentication required"))
@@ -135,7 +104,7 @@ func (w *Web) auth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (w *Web) login(rw http.ResponseWriter, r *http.Request) {
+func (w *API) login(rw http.ResponseWriter, r *http.Request) {
 	w.mu.Lock()
 	now := time.Now()
 	valid := w.attempts[:0]
@@ -182,11 +151,11 @@ func (w *Web) login(rw http.ResponseWriter, r *http.Request) {
 	}
 	w.sessions[id] = session{expires: now.Add(8 * time.Hour)}
 	w.mu.Unlock()
-	// HTTP is deliberately loopback-only; no remote deployment or proxy is supported.
+	// HTTP is an IPC protocol over the private Unix socket; no TLS/TCP is used.
 	http.SetCookie(rw, &http.Cookie{Name: "memoshield_session", Value: id, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: 8 * 3600})
 	reply(rw, 200, map[string]bool{"ok": true})
 }
-func (w *Web) logout(rw http.ResponseWriter, r *http.Request) {
+func (w *API) logout(rw http.ResponseWriter, r *http.Request) {
 	c, _ := r.Cookie("memoshield_session")
 	w.mu.Lock()
 	delete(w.sessions, c.Value)
@@ -194,10 +163,10 @@ func (w *Web) logout(rw http.ResponseWriter, r *http.Request) {
 	http.SetCookie(rw, &http.Cookie{Name: "memoshield_session", Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1})
 	reply(rw, 200, map[string]bool{"ok": true})
 }
-func (w *Web) status(rw http.ResponseWriter, r *http.Request) {
+func (w *API) status(rw http.ResponseWriter, r *http.Request) {
 	reply(rw, 200, map[string]interface{}{"mode": w.engine.config.Mode, "sensors": w.engine.Statuses(), "scope": "Bu bilgisayar ve yapılandırılmış sensörün görebildiği trafik; tüm Wi-Fi ağı değil."})
 }
-func (w *Web) events(rw http.ResponseWriter, r *http.Request) {
+func (w *API) events(rw http.ResponseWriter, r *http.Request) {
 	rows, err := w.engine.store.Events(0, true)
 	if err != nil {
 		fail(rw, 500, err)
@@ -205,7 +174,7 @@ func (w *Web) events(rw http.ResponseWriter, r *http.Request) {
 	}
 	reply(rw, 200, map[string]interface{}{"events": rows})
 }
-func (w *Web) bans(rw http.ResponseWriter, r *http.Request) {
+func (w *API) bans(rw http.ResponseWriter, r *http.Request) {
 	rows, err := w.engine.store.Bans()
 	if err != nil {
 		fail(rw, 500, err)
@@ -213,7 +182,7 @@ func (w *Web) bans(rw http.ResponseWriter, r *http.Request) {
 	}
 	reply(rw, 200, map[string]interface{}{"bans": rows})
 }
-func (w *Web) allowlist(rw http.ResponseWriter, r *http.Request) {
+func (w *API) allowlist(rw http.ResponseWriter, r *http.Request) {
 	rows, err := w.engine.store.Allowlist()
 	if err != nil {
 		fail(rw, 500, err)
@@ -221,7 +190,7 @@ func (w *Web) allowlist(rw http.ResponseWriter, r *http.Request) {
 	}
 	reply(rw, 200, map[string]interface{}{"prefixes": rows})
 }
-func (w *Web) ban(rw http.ResponseWriter, r *http.Request) {
+func (w *API) ban(rw http.ResponseWriter, r *http.Request) {
 	var b struct {
 		IP      string `json:"ip"`
 		Reason  string `json:"reason"`
@@ -241,7 +210,7 @@ func (w *Web) ban(rw http.ResponseWriter, r *http.Request) {
 	}
 	reply(rw, 200, map[string]bool{"ok": true})
 }
-func (w *Web) unban(rw http.ResponseWriter, r *http.Request) {
+func (w *API) unban(rw http.ResponseWriter, r *http.Request) {
 	var b struct {
 		IP string `json:"ip"`
 	}
@@ -255,7 +224,7 @@ func (w *Web) unban(rw http.ResponseWriter, r *http.Request) {
 	}
 	reply(rw, 200, map[string]bool{"ok": true})
 }
-func (w *Web) allow(rw http.ResponseWriter, r *http.Request) {
+func (w *API) allow(rw http.ResponseWriter, r *http.Request) {
 	var b struct {
 		Prefix string `json:"prefix"`
 		Add    bool   `json:"add"`
@@ -271,7 +240,7 @@ func (w *Web) allow(rw http.ResponseWriter, r *http.Request) {
 	reply(rw, 200, map[string]bool{"ok": true})
 }
 
-func (w *Web) stream(rw http.ResponseWriter, r *http.Request) {
+func (w *API) stream(rw http.ResponseWriter, r *http.Request) {
 	select {
 	case w.streams <- struct{}{}:
 		defer func() { <-w.streams }()

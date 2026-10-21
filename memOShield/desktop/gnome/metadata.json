@@ -1,9 +1,9 @@
 {
   "uuid": "memoshield@MemoS778",
   "name": "memOShield Personal",
-  "description": "Yerel memOShield servisinin sensörlerini, olaylarını ve süreli engellerini GNOME panelinden yönetir. Ayrı memoshield-personal servisi gerekir.",
+  "description": "Yerel memOShield servisinin kısa durumunu ve son olaylarını gösterir; masaüstü uygulamasını açar. Ayrı memoshield-personal servisi gerekir.",
   "shell-version": ["51"],
-  "version": 2,
+  "version": 3,
   "url": "https://github.com/MemoS778/memOShield",
   "settings-schema": "org.gnome.shell.extensions.memoshield"
 }

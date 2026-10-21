@@ -283,15 +283,23 @@ func TestStoreReplayAndTimeRange(t *testing.T) {
 func TestHTTPAuthOriginHostAndRealSSE(t *testing.T) {
 	s, e, _ := fixture(t, "monitor")
 	srv := httptest.NewUnstartedServer(nil)
-	e.config.Listen = srv.Listener.Addr().String()
-	srv.Config.Handler = NewWeb(e, strings.Repeat("a", 64))
+	srv.Config.Handler = NewLocalAPI(e, strings.Repeat("a", 64))
 	srv.Start()
 	defer srv.Close()
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar, Timeout: 4 * time.Second}
+	get := func(path string) (*http.Response, error) {
+		r, err := http.NewRequest("GET", srv.URL+path, nil)
+		if err != nil {
+			return nil, err
+		}
+		r.Host = "localhost"
+		return client.Do(r)
+	}
 	post := func(path, body, origin string) *http.Response {
 		t.Helper()
 		r, _ := http.NewRequest("POST", srv.URL+path, strings.NewReader(body))
+		r.Host = "localhost"
 		r.Header.Set("Content-Type", "application/json")
 		if origin != "" {
 			r.Header.Set("Origin", origin)
@@ -302,7 +310,7 @@ func TestHTTPAuthOriginHostAndRealSSE(t *testing.T) {
 		}
 		return res
 	}
-	res, err := client.Get(srv.URL + "/api/events")
+	res, err := get("/api/events")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,17 +333,17 @@ func TestHTTPAuthOriginHostAndRealSSE(t *testing.T) {
 	if res.StatusCode != 403 {
 		t.Fatal("DNS rebinding host accepted")
 	}
-	res = post("/api/login", `{"token":"`+strings.Repeat("a", 64)+`"}`, srv.URL)
+	res = post("/api/login", `{"token":"`+strings.Repeat("a", 64)+`"}`, "http://localhost")
 	res.Body.Close()
 	if res.StatusCode != 200 {
 		t.Fatal("login failed")
 	}
-	res = post("/api/allowlist", `{"prefix":"192.0.2.1","add":true} {}`, srv.URL)
+	res = post("/api/allowlist", `{"prefix":"192.0.2.1","add":true} {}`, "http://localhost")
 	res.Body.Close()
 	if res.StatusCode != 400 {
 		t.Fatal("trailing JSON accepted")
 	}
-	res = post("/api/ban", `{"ip":"192.0.2.1","minutes":10,"reason":"test"}`, srv.URL)
+	res = post("/api/ban", `{"ip":"192.0.2.1","minutes":10,"reason":"test"}`, "http://localhost")
 	res.Body.Close()
 	if res.StatusCode != 409 {
 		t.Fatal("monitor mode allowed ban")
@@ -343,6 +351,7 @@ func TestHTTPAuthOriginHostAndRealSSE(t *testing.T) {
 	ev := event("sse1", time.Now())
 	s.AddEvent(&ev)
 	request, _ := http.NewRequest("GET", srv.URL+"/api/stream", nil)
+	request.Host = "localhost"
 	res, err = client.Do(request)
 	if err != nil {
 		t.Fatal(err)
@@ -364,10 +373,10 @@ func TestHTTPAuthOriginHostAndRealSSE(t *testing.T) {
 		t.Fatalf("no SSE data: %s %v", line, err)
 	}
 	res.Body.Close()
-	res = post("/api/logout", `{}`, srv.URL)
+	res = post("/api/logout", `{}`, "http://localhost")
 	io.Copy(io.Discard, res.Body)
 	res.Body.Close()
-	res, err = client.Get(srv.URL + "/api/status")
+	res, err = get("/api/status")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,12 +386,12 @@ func TestHTTPAuthOriginHostAndRealSSE(t *testing.T) {
 	}
 }
 
-func TestConfigRejectsRemoteBind(t *testing.T) {
-	t.Setenv("MEMOSHIELD_LISTEN", "0.0.0.0:5000")
+func TestConfigValidatesSocketAndMode(t *testing.T) {
+	t.Setenv("MEMOSHIELD_SOCKET", "relative/control.sock")
 	if _, err := LoadConfig(); err == nil {
-		t.Fatal("remote bind accepted")
+		t.Fatal("relative socket path accepted")
 	}
-	t.Setenv("MEMOSHIELD_LISTEN", "127.0.0.1:5000")
+	t.Setenv("MEMOSHIELD_SOCKET", "/tmp/memoshield-test/control.sock")
 	t.Setenv("MEMOSHIELD_MODE", "typo")
 	if _, err := LoadConfig(); err == nil {
 		t.Fatal("invalid mode accepted")

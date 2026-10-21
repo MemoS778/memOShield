@@ -7,7 +7,7 @@ import Gdk from 'gi://Gdk?version=4.0';
 import System from 'system';
 import {Client} from '../gnome/client.js';
 
-const app = new Adw.Application({application_id: 'io.github.MemoS778.memOShield'});
+const app = new Adw.Application({application_id: GLib.getenv('MEMOSHIELD_UI_SMOKE') === '1' ? 'io.github.MemoS778.memOShield.SmokeTest' : 'io.github.MemoS778.memOShield'});
 let win, client, timer, content, status, page = 'overview', busy = false;
 let smokeFailed = false;
 const names = {overview: 'Genel bakış', changes: 'Değişiklikler', events: 'Olay geçmişi', protection: 'Koruma', settings: 'Ayarlar'};
@@ -53,7 +53,8 @@ function exportEvents(events) {
             file.replace_contents(new TextEncoder().encode(JSON.stringify(events, null, 2)), null, false, Gio.FileCreateFlags.PRIVATE, null);
             if (win) status.label = `${events.length} olay kaydedildi. Dosya IP ve günlük kanıtları içerir.`;
         } catch (error) {
-            if (win && !error.matches(Gtk.DialogError, Gtk.DialogError.DISMISSED)) status.label = error.message;
+            const dismissed = error instanceof GLib.Error && error.matches(Gtk.DialogError, Gtk.DialogError.DISMISSED);
+            if (win && !dismissed) status.label = error.message;
         }
     });
 }

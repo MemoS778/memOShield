@@ -6,15 +6,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 type Config struct {
-	Socket                                         string
-	Listen, DataDir, Mode, EVEPath, FirewallSocket string
+	Socket, DataDir, Mode, EVEPath, FirewallSocket string
 	Journal                                        bool
 }
 
@@ -29,7 +27,6 @@ func LoadConfig() (Config, error) {
 	}
 	c := Config{
 		Socket:  env("MEMOSHIELD_SOCKET", filepath.Join(env("XDG_RUNTIME_DIR", filepath.Join(base, "memoshield")), "memoshield", "control.sock")),
-		Listen:  env("MEMOSHIELD_LISTEN", "127.0.0.1:5000"),
 		DataDir: env("MEMOSHIELD_DATA_DIR", filepath.Join(base, "memoshield")),
 		Mode:    env("MEMOSHIELD_MODE", "monitor"), EVEPath: os.Getenv("MEMOSHIELD_EVE_PATH"),
 		FirewallSocket: env("MEMOSHIELD_FIREWALL_SOCKET", "/run/memoshield/firewall.sock"),
@@ -37,10 +34,6 @@ func LoadConfig() (Config, error) {
 	}
 	if !filepath.IsAbs(c.Socket) {
 		return c, fmt.Errorf("MEMOSHIELD_SOCKET must be an absolute path")
-	}
-	host, _, err := net.SplitHostPort(c.Listen)
-	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
-		return c, fmt.Errorf("MEMOSHIELD_LISTEN must be a literal loopback address and port")
 	}
 	if c.Mode != "monitor" && c.Mode != "manual" && c.Mode != "auto" {
 		return c, fmt.Errorf("MEMOSHIELD_MODE must be monitor, manual or auto")
